@@ -7,10 +7,12 @@ import { registerCommand } from './util'
 let ctx: Ctx
 
 export async function activate(context: ExtensionContext): Promise<void> {
-  registerCommand('restart', async () => {
-    disposeAll(context.subscriptions)
-    await activate(context)
-  })
+  context.subscriptions.push(
+    registerCommand('restart', async () => {
+      disposeAll(context.subscriptions)
+      await activate(context)
+    }),
+  )
 
   const dataRoot = context.storagePath
   if (!existsSync(dataRoot)) mkdirSync(dataRoot)
