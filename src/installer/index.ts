@@ -1,7 +1,6 @@
 import type { Response } from 'node-fetch'
 import type { Ctx } from '@/ctx'
 import type { Release } from '@/util'
-import * as os from 'node:os'
 import path from 'node:path'
 import { window } from 'coc.nvim'
 import * as fs from 'fs-extra'
@@ -52,10 +51,10 @@ export class Installer {
       return
     }
 
-    const osPlatform = ['linux', 'darwin', 'win32'].includes(os.platform())
-      ? os.platform()
+    const platform = ['linux', 'darwin', 'win32'].includes(process.platform)
+      ? process.platform
       : 'linux'
-    const targetPlatform = `${osPlatform}-${os.arch()}`
+    const targetPlatform = `${platform}-${process.arch}`
 
     const release = await response.json()
 
@@ -106,45 +105,30 @@ export class Installer {
         },
       })
       if (!resp.ok) {
-        statusItem.hide()
         throw new Error(
           'Download failed! Maybe the provided target platform is not supported for now',
         )
       }
 
       const buffer = await resp.buffer()
+      const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+      const tempFile = path.join(this.tempPath, ROOT_NAME)
 
-      const extTempDir = path.join(this.tempPath, Date.now().toString())
-      if (!await fs.exists(extTempDir)) {
-        await fs.mkdir(extTempDir, { recursive: true })
-      }
-      const extTempFile = path.join(extTempDir, ROOT_NAME)
-      statusItem.text = `Writing temp file ${extTempFile}`
-      await fs.writeFile(extTempFile, new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength))
+      statusItem.text = 'Installing latest lua-language-server'
+      await fs.outputFile(tempFile, bytes)
 
       const targetPath = this.targetPath
-
-      statusItem.text = `Removing old files`
       await fs.remove(targetPath)
+      await extract(tempFile, { dir: targetPath })
 
-      statusItem.text = `Extracting to ${targetPath}`
-      await extract(extTempFile, { dir: targetPath })
+      const binPath = path.join(this.serverPath, 'bin', 'lua-language-server')
+      if (fs.existsSync(binPath)) await fs.chmod(binPath, 0o755)
 
-      const binPath = path.join(
-        targetPath,
-        'extension',
-        'server',
-        'bin',
-        'lua-language-server',
-      )
-      if (fs.existsSync(binPath)) await fs.chmod(binPath, '777')
-
-      statusItem.text = `Removing temp file ${extTempFile}`
-      await fs.remove(this.tempPath)
       window.showInformationMessage(`Installed ${targetPath} successfully`)
     } finally {
       statusItem.hide()
       statusItem.dispose()
+      await fs.remove(this.tempPath)
     }
   }
 }
