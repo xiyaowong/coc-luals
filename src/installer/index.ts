@@ -120,8 +120,7 @@ export class Installer {
       }
       const extTempFile = path.join(extTempDir, ROOT_NAME)
       statusItem.text = `Writing temp file ${extTempFile}`
-      // @ts-expect-error ...
-      await fs.writeFile(extTempFile, buffer)
+      await fs.writeFile(extTempFile, new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength))
 
       const targetPath = this.targetPath
 
