@@ -42,6 +42,7 @@ export class Ctx implements Disposable {
           coc.commands.executeCommand('lua.restart')
         }, 1000)
       }),
+      registerCommand('checkUpdate', () => this.checkUpdate(true)),
       registerCommand('showVersion', async () => {
         const v = (await this.getCurrentVersion()) || 'unknown version'
         window.showNotification({ title: 'coc-luals', content: `Lua Language Server version: ${v}` })
@@ -129,18 +130,27 @@ export class Ctx implements Disposable {
     }
 
     // not check update if user provide serverDir
-    if (this.config.serverDir) return
+    if (this.config.serverDir) {
+      if (force) window.showInformationMessage('You are using a custom serverDir, update check is skipped.')
+      return
+    }
 
     const currentVersion = await this.getCurrentVersion()
     if (!currentVersion) return
 
     const latest = await this.installer.fetchLatestRelease()
-    if (!latest) return
+    if (!latest) {
+      if (force) window.showWarningMessage('Failed to fetch latest release information.')
+      return
+    }
 
     const latestVersion = latest.version.match(/\d.*/)
     if (!latestVersion) return
 
-    if (compareVersion(latestVersion[0], currentVersion) <= 0) return
+    if (compareVersion(latestVersion[0], currentVersion) <= 0) {
+      if (force) window.showInformationMessage(`lua-language-server is up to date, current version: v${currentVersion}`)
+      return
+    }
 
     const DOWNLOAD = 'Download the latest server'
     const CANCEL = 'Cancel'
