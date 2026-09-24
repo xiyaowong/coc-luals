@@ -69,7 +69,7 @@ export class Ctx implements Disposable {
     // TODO: handle Lua.misc.executablePath
     const serverDir = this.config.serverDir
       ? this.config.serverDir
-      : path.join(this.extCtx.storagePath, 'luals', 'extension', 'server')
+      : this.installer.serverPath
 
     const platform = process.platform
     const bin = path.join(

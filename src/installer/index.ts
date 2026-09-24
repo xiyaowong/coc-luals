@@ -75,6 +75,10 @@ export class Installer {
     return path.join(this.targetPath, 'extension', 'package.json')
   }
 
+  public get serverPath() {
+    return path.join(this.targetPath, 'extension', 'server')
+  }
+
   public get tempPath() {
     return path.join(this.ctx.extCtx.storagePath, `${ROOT_NAME}-temp`)
   }
