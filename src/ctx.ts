@@ -13,7 +13,7 @@ import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
 import { Config } from './config'
 import { Installer } from './installer'
-import { compareVersion, isLuaDocument, registerCommand } from './util'
+import { compareVersion, isLuaDocument, registerCommand, withPrefix } from './util'
 
 export class Ctx implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -44,14 +44,10 @@ export class Ctx implements Disposable {
       }),
       registerCommand('showVersion', async () => {
         const v = (await this.getCurrentVersion()) || 'unknown version'
-        window.showNotification({
-          title: 'Lua Language Server [coc-luals]',
-          content: v,
-          kind: 'info',
-        })
+        window.showNotification({ title: 'coc-luals', content: `Lua Language Server version: ${v}` })
       }),
       registerCommand('showUsage', () => {
-        window.showNotification({ content: this.usage })
+        window.showNotification({ title: 'coc-luals', content: this.usage })
       }),
       registerCommand('reloadFFIMeta', async () => {
         this.client?.sendRequest(ExecuteCommandRequest.type, {
@@ -80,7 +76,7 @@ export class Ctx implements Disposable {
     if (!fs.existsSync(bin)) return
 
     if (!coc.executable(bin)) {
-      window.showInformationMessage(`${bin} is not executable`, 'error')
+      window.showErrorMessage(withPrefix(`${bin} is not executable`))
       return
     }
 
@@ -149,7 +145,7 @@ export class Ctx implements Disposable {
     const DOWNLOAD = 'Download the latest server'
     const CANCEL = 'Cancel'
     const ret = await window.showQuickPick([DOWNLOAD, CANCEL], {
-      title: `lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.`,
+      title: withPrefix(`lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.`),
     })
     if (ret === DOWNLOAD) {
       await this.client?.stop()

@@ -93,7 +93,7 @@ export class Installer {
         release = await this.fetchLatestRelease()
         if (!release) {
           statusItem.hide()
-          window.showErrorMessage('Get latest release information failed', 'error')
+          window.showErrorMessage('Get latest release information failed')
           return
         }
       }

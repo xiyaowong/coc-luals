@@ -2,7 +2,7 @@ import type { ExtensionContext } from 'coc.nvim'
 import { disposeAll, window } from 'coc.nvim'
 import { existsSync, mkdirSync } from 'fs-extra'
 import { Ctx } from './ctx'
-import { registerCommand } from './util'
+import { registerCommand, withPrefix } from './util'
 
 let ctx: Ctx
 
@@ -22,7 +22,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   const bin = ctx.resolveBin()
   if (!bin) {
-    const installNow = await window.showPrompt('lua-language-server is not found, install now?')
+    const installNow = await window.showPrompt(withPrefix('lua-language-server is not found, install now?'))
     if (installNow) {
       try {
         await ctx.installer.downloadServer()

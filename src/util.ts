@@ -1,4 +1,4 @@
-import type { Disposable, TextDocument } from 'coc.nvim'
+import type { TextDocument } from 'coc.nvim'
 import { commands } from 'coc.nvim'
 
 export const COMMAND_NAME = 'lua'
@@ -25,14 +25,8 @@ export function registerCommand(name: string, cmd: Cmd, internal = false) {
   return commands.registerCommand(`${COMMAND_NAME}.${name}`, cmd, internal)
 }
 
-export function diposeAll(disposables: Disposable[]) {
-  while (disposables.length) {
-    try {
-      disposables.pop()?.dispose()
-    } catch (e) {
-      console.warn(e)
-    }
-  }
+export function withPrefix(content: string): string {
+  return `[coc-luals] ${content}`
 }
 
 /**
