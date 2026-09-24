@@ -112,14 +112,25 @@ export class Installer {
 
       const buffer = await resp.buffer()
       const bytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-      const tempFile = path.join(this.tempPath, ROOT_NAME)
+      const tempFile = path.join(this.tempPath, `${ROOT_NAME}.zip`)
 
       statusItem.text = 'Installing latest lua-language-server'
       await fs.outputFile(tempFile, bytes)
+      await extract(tempFile, { dir: this.tempPath })
+      await fs.remove(tempFile)
 
       const targetPath = this.targetPath
-      await fs.remove(targetPath)
-      await extract(tempFile, { dir: targetPath })
+      const backupPath = `${targetPath}-old`
+      const hasOldInstall = await fs.pathExists(targetPath)
+
+      if (hasOldInstall) await fs.move(targetPath, backupPath, { overwrite: true })
+      try {
+        await fs.move(this.tempPath, targetPath, { overwrite: true })
+      } catch (err) {
+        if (hasOldInstall) await fs.move(backupPath, targetPath, { overwrite: true })
+        throw err
+      }
+      await fs.remove(backupPath).catch(err => console.error(err))
 
       const binPath = path.join(this.serverPath, 'bin', 'lua-language-server')
       if (fs.existsSync(binPath)) await fs.chmod(binPath, 0o755)
@@ -128,7 +139,7 @@ export class Installer {
     } finally {
       statusItem.hide()
       statusItem.dispose()
-      await fs.remove(this.tempPath)
+      await fs.remove(this.tempPath).catch(err => console.error(err))
     }
   }
 }
