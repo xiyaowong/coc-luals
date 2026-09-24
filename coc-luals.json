@@ -46,31 +46,27 @@
   "commands": [
     {
       "command": "lua.install",
-      "title": "Install or update server"
+      "title": "Lua: Install or update server"
     },
     {
       "command": "lua.restart",
-      "title": "Restart extension"
+      "title": "Lua: Restart extension"
     },
     {
       "command": "lua.showVersion",
-      "title": "Echo server version"
+      "title": "Lua: Echo server version"
     },
     {
       "command": "lua.checkUpdate",
-      "title": "Check update"
+      "title": "Lua: Check update"
     },
     {
       "command": "lua.showUsage",
-      "title": "Show usage information"
-    },
-    {
-      "command": "lua.exportDocument",
-      "title": "%command.exportDocument%"
+      "title": "Lua: Show usage information"
     },
     {
       "command": "lua.reloadFFIMeta",
-      "title": "%command.reloadFFIMeta%"
+      "title": "Lua: Reload luajit ffi meta"
     }
   ]
 }

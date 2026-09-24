@@ -8,14 +8,7 @@ import type {
 import { execSync } from 'node:child_process'
 import path from 'node:path'
 import * as coc from 'coc.nvim'
-import {
-  disposeAll,
-  events,
-  LanguageClient,
-  services,
-  window,
-  workspace,
-} from 'coc.nvim'
+import { disposeAll, events, LanguageClient, services, window, workspace } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
 import { Config } from './config'
@@ -41,37 +34,29 @@ export class Ctx implements Disposable {
       // this.installer,
       this.outputChannel,
       registerCommand('install', async () => {
-        await this.installer.downloadServer()
         if (this.client && this.client.needsStop()) {
           await this.client.stop()
-          this.client.start()
-        } else {
-          window.showInformationMessage('May be you should restart the server')
         }
+        await this.installer.downloadServer()
+        setTimeout(() => {
+          coc.commands.executeCommand('lua.restart')
+        }, 1000)
       }),
       registerCommand('showVersion', async () => {
         const v = (await this.getCurrentVersion()) || 'unknown version'
-        window.showInformationMessage(v)
+        window.showNotification({
+          title: 'Lua Language Server [coc-luals]',
+          content: v,
+          kind: 'info',
+        })
       }),
       registerCommand('showUsage', () => {
         window.showNotification({ content: this.usage })
       }),
-      registerCommand('exportDocument', async () => {
-        if (!this.client) return
-        const pathBox = await window.createInputBox(
-          'Please select a folder to export the document to',
-          workspace.cwd,
-        )
-        pathBox.onDidFinish((output) => {
-          if (!output) return
-          this.client?.sendRequest(ExecuteCommandRequest.type, {
-            command: 'lua.exportDocument',
-            arguments: [output.toString()],
-          })
-        })
-      }),
       registerCommand('reloadFFIMeta', async () => {
-        this.client?.sendRequest(ExecuteCommandRequest.type, { command: 'lua.reloadFFIMeta' })
+        this.client?.sendRequest(ExecuteCommandRequest.type, {
+          command: 'lua.reloadFFIMeta',
+        })
       }),
     )
   }
@@ -123,13 +108,7 @@ export class Ctx implements Disposable {
     } else {
       // must be based on the version of vscode extension
       try {
-        const packageJson = path.join(
-          this.extCtx.storagePath,
-          'luals-ls',
-          'extension',
-          'package.json',
-        )
-        const packageData = await fs.readJson(packageJson)
+        const packageData = await fs.readJson(this.installer.packageJsonPath)
         return packageData.version
       } catch (err) {
         console.error(err)
@@ -169,10 +148,9 @@ export class Ctx implements Disposable {
 
     const DOWNLOAD = 'Download the latest server'
     const CANCEL = 'Cancel'
-    const ret = await window.showQuickPick(
-      [DOWNLOAD, CANCEL],
-      { title: `lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.` },
-    )
+    const ret = await window.showQuickPick([DOWNLOAD, CANCEL], {
+      title: `lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.`,
+    })
     if (ret === DOWNLOAD) {
       await this.client?.stop()
       try {

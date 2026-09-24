@@ -20,15 +20,14 @@ You can also custom the server path([`luals.serverDir`](settings.md#lualsserverd
 
 ## Commands
 
-| Command              | Description              |
-| -------------------- | ------------------------ |
-| `lua.install`        | Install or update server |
-| `lua.restart`        | Restart extension        |
-| `lua.version`        | Echo server version      |
-| `lua.checkUpdate`    | Check update             |
-| `lua.showTooltip`    | Show usage information   |
-| `lua.exportDocument` |                          |
-| `lua.reloadFFIMeta`  |                          |
+| Command             | Description              |
+| ------------------- | ------------------------ |
+| `lua.install`       | Install or update server |
+| `lua.restart`       | Restart extension        |
+| `lua.version`       | Echo server version      |
+| `lua.checkUpdate`   | Check update             |
+| `lua.showTooltip`   | Show usage information   |
+| `lua.reloadFFIMeta` | Reload luajit ffi meta   |
 
 ## License
 
