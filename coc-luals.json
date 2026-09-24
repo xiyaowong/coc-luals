@@ -1,0 +1,76 @@
+{
+  "configuration": {
+    "luals.locale": {
+      "type": "string",
+      "default": "en-us",
+      "enum": ["en-us", "es-419", "ja-jp", "pt-br", "zh-cn", "zh-tw"],
+      "description": "The localized language used",
+      "enumDescriptions": [
+        "`\"en-us\"` English",
+        "`\"es-419\"` Español (Latinoamérica)",
+        "`\"ja-jp\"` 日本語",
+        "`\"pt-br\"` Português",
+        "`\"zh-cn\"` 简体中文",
+        "`\"zh-tw\"` 繁體中文"
+      ]
+    },
+    "luals.logPath": {
+      "type": "string",
+      "default": "",
+      "description": "The log path"
+    },
+    "luals.serverDir": {
+      "type": "string",
+      "default": null,
+      "description": "The server directory which contains: bin/, changelog.md, debugger.lua, locale/, main.lua, meta/, script/. Download and set by default"
+    },
+    "luals.nvimLua.enable": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable the nvim lua development"
+    },
+    "luals.nvimLua.library": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Nvim lua plugin library name or path, for example: `\"nvim-treesitter\"`"
+    },
+    "luals.checkUpdate": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically check for updates after startup."
+    }
+  },
+  "commands": [
+    {
+      "command": "lua.install",
+      "title": "Install or update server"
+    },
+    {
+      "command": "lua.restart",
+      "title": "Restart extension"
+    },
+    {
+      "command": "lua.showVersion",
+      "title": "Echo server version"
+    },
+    {
+      "command": "lua.checkUpdate",
+      "title": "Check update"
+    },
+    {
+      "command": "lua.showUsage",
+      "title": "Show usage information"
+    },
+    {
+      "command": "lua.exportDocument",
+      "title": "%command.exportDocument%"
+    },
+    {
+      "command": "lua.reloadFFIMeta",
+      "title": "%command.reloadFFIMeta%"
+    }
+  ]
+}
