@@ -12,6 +12,7 @@ update-config.js
 esbuild.json
 .vim
 eslint.config.js
+eslint.config.*
 package-lock.json
 tsdown.config.mts
 luals-*.json
