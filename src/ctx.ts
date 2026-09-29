@@ -1,9 +1,10 @@
 import type { Disposable, ExtensionContext, LanguageClientOptions, OutputChannel, ServerOptions } from 'coc.nvim'
 import { execSync } from 'node:child_process'
 import path from 'node:path'
-import { commands, disposeAll, events, executable, LanguageClient, languages, services, window, workspace } from 'coc.nvim'
+import { commands, disposeAll, events, executable, LanguageClient, languages, listManager, services, window, workspace } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
+import { AddonManager } from './addon_manger'
 import { Config } from './config'
 import { Installer } from './installer'
 import { NvimLua } from './nvim-lua'
@@ -17,6 +18,7 @@ export class Ctx implements Disposable {
   public readonly outputChannel: OutputChannel
   public readonly installer: Installer
   public readonly nvimLua: NvimLua
+  public readonly addonManger: AddonManager
 
   private usage = ''
 
@@ -24,13 +26,16 @@ export class Ctx implements Disposable {
     this.installer = new Installer(this)
     this.outputChannel = window.createOutputChannel('lua')
     this.nvimLua = new NvimLua(this)
+    this.addonManger = new AddonManager(this)
 
     const completionProvider = languages.registerCompletionItemProvider('coc-luals', 'Lua', LUA_DOCUMENT_SELECTOR, this.nvimLua, ['\'', '"', '@'])
     const codeActionProvider = languages.registerCodeActionProvider(LUA_DOCUMENT_SELECTOR, this.nvimLua, CLIENT_ID, ['quickfix'])
+    const addonListProvider = listManager.registerList(this.addonManger)
 
     this.disposables.push(
       this.outputChannel,
       this.nvimLua,
+      addonListProvider,
       completionProvider,
       codeActionProvider,
       registerCommand('install', async () => {
@@ -38,9 +43,7 @@ export class Ctx implements Disposable {
           await this.client.stop()
         }
         await this.installer.downloadServer()
-        setTimeout(() => {
-          commands.executeCommand('lua.restart')
-        }, 1000)
+        setTimeout(() => commands.executeCommand('lua.restart'), 1000)
       }),
       registerCommand('checkUpdate', () => this.checkUpdate(true)),
       registerCommand('showVersion', async () => {
@@ -199,7 +202,8 @@ export class Ctx implements Disposable {
       middleware: {
         workspace: {
           configuration: async (params, token, next) => {
-            const result = await next(params, token)
+            let result = await next(params, token)
+            result = this.addonManger.patchConfiguration(params, result)
             return this.nvimLua.patchConfiguration(params, result)
           },
         },
@@ -262,9 +266,7 @@ export class Ctx implements Disposable {
       this.disposables,
     )
 
-    setTimeout(() => {
-      this.client?.sendNotification('$/status/refresh')
-    }, 1000)
+    setTimeout(() => this.client?.sendNotification('$/status/refresh'), 1000)
   }
 
   activateCommand() {
