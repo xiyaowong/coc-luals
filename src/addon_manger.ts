@@ -48,8 +48,16 @@ export class AddonManager extends BasicList {
     return path.join(this.ctx.extCtx.storagePath, 'addonManager')
   }
 
-  private async runGit(args: string[], cwd: string = this.addonsDir): Promise<string> {
-    const { stdout } = await pExecFile('git', args, { cwd })
+  private getAddonDir(name: string): string {
+    return path.join(this.addonsDir, 'addons', name)
+  }
+
+  private getModuleDir(name: string): string {
+    return path.join(this.getAddonDir(name), 'module')
+  }
+
+  private async runGit(args: string[], cwd: string = this.addonsDir, timeout = 120_000): Promise<string> {
+    const { stdout } = await pExecFile('git', args, { cwd, timeout })
     return stdout.trim()
   }
 
@@ -61,7 +69,7 @@ export class AddonManager extends BasicList {
       await fs.ensureDir(repoDir)
       try {
         window.showInformationMessage('Cloning LuaLS/LLS-Addons repository...')
-        await pExecFile('git', ['clone', '--depth=1', 'https://github.com/LuaLS/LLS-Addons.git', repoDir])
+        await this.runGit(['clone', '--depth=1', 'https://github.com/LuaLS/LLS-Addons.git', repoDir], process.cwd())
         window.showInformationMessage('Successfully cloned LLS-Addons repository.')
       } catch (err: any) {
         window.showErrorMessage(`Failed to clone LLS-Addons: ${err?.message || err}`)
@@ -69,7 +77,7 @@ export class AddonManager extends BasicList {
       }
     } else if (!this.isUpdatingRepo) {
       this.isUpdatingRepo = true
-      pExecFile('git', ['pull', '--ff-only'], { cwd: repoDir })
+      this.runGit(['pull', '--ff-only'])
         .catch(() => {})
         .finally(() => {
           this.isUpdatingRepo = false
@@ -80,7 +88,7 @@ export class AddonManager extends BasicList {
   }
 
   public isAddonInstalled(name: string): boolean {
-    const moduleDir = path.join(this.addonsDir, 'addons', name, 'module')
+    const moduleDir = this.getModuleDir(name)
     if (!fs.existsSync(moduleDir)) return false
     try {
       const files = fs.readdirSync(moduleDir)
@@ -106,8 +114,7 @@ export class AddonManager extends BasicList {
     const ready = await this.ensureRepo()
     if (!ready) return false
 
-    const addonRelativePath = path.join('addons', addon.name)
-    const moduleDir = path.join(this.addonsDir, addonRelativePath, 'module')
+    const moduleDir = this.getModuleDir(addon.name)
 
     if (this.isAddonInstalled(addon.name)) {
       window.showInformationMessage(`Addon "${addon.name}" is already installed.`)
@@ -116,15 +123,13 @@ export class AddonManager extends BasicList {
 
     window.showInformationMessage(`Installing addon "${addon.name}"...`)
 
+    const addonRelativePath = path.join('addons', addon.name)
     try {
       await this.runGit(['submodule', 'update', '--init', '--depth=1', addonRelativePath])
-    } catch {
-      try {
-        await this.runGit(['submodule', 'update', '--init', addonRelativePath])
-      } catch (err: any) {
-        window.showErrorMessage(`Failed to install addon "${addon.name}": ${err?.message || err}`)
-        return false
-      }
+        .catch(() => this.runGit(['submodule', 'update', '--init', addonRelativePath]))
+    } catch (err: any) {
+      window.showErrorMessage(`Failed to install addon "${addon.name}": ${err?.message || err}`)
+      return false
     }
 
     if (!fs.existsSync(moduleDir) || fs.readdirSync(moduleDir).length === 0) {
@@ -141,18 +146,15 @@ export class AddonManager extends BasicList {
       await this.disableAddon(addon)
     }
 
-    const addonRelativePath = path.join('addons', addon.name)
-    const moduleDir = path.join(this.addonsDir, addonRelativePath, 'module')
-
+    const moduleDir = this.getModuleDir(addon.name)
     if (!fs.existsSync(moduleDir)) {
       window.showInformationMessage(`Addon "${addon.name}" is not installed.`)
       return
     }
 
+    const addonRelativePath = path.join('addons', addon.name)
     try {
       await this.runGit(['submodule', 'deinit', '-f', addonRelativePath])
-      await fs.remove(moduleDir)
-      await fs.ensureDir(moduleDir)
       window.showInformationMessage(`Addon "${addon.name}" uninstalled.`)
     } catch (err: any) {
       window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
@@ -168,7 +170,7 @@ export class AddonManager extends BasicList {
     const addonPathPlaceholder = `\${addons}/${addon.name}/module/library`
     await this.ctx.config.addWorkspaceLibrary(addonPathPlaceholder)
 
-    const configFile = path.join(this.addonsDir, 'addons', addon.name, 'module', 'config.json')
+    const configFile = path.join(this.getModuleDir(addon.name), 'config.json')
     if (fs.existsSync(configFile)) {
       try {
         const configData: AddonConfig = await fs.readJson(configFile)

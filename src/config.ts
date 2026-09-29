@@ -1,6 +1,6 @@
 import type { Disposable } from 'coc.nvim'
 import type { Locale } from './util'
-import { ConfigurationTarget, disposeAll, workspace } from 'coc.nvim'
+import { disposeAll, workspace } from 'coc.nvim'
 import { CONFIG_NAME } from './util'
 
 export class Config implements Disposable {
@@ -45,9 +45,9 @@ export class Config implements Disposable {
   public async updateLuaConfig(
     section: string,
     value: any,
-    target: ConfigurationTarget = ConfigurationTarget.Workspace,
+    global: boolean = false,
   ): Promise<void> {
-    await workspace.getConfiguration('Lua').update(section, value, target)
+    await workspace.getConfiguration('Lua').update(section, value, global)
   }
 
   public get workspaceLibrary(): string[] {
@@ -56,32 +56,33 @@ export class Config implements Disposable {
 
   public async setWorkspaceLibrary(
     libs: string[],
-    target: ConfigurationTarget = ConfigurationTarget.Workspace,
+    global: boolean = false,
   ): Promise<void> {
-    await this.updateLuaConfig('workspace.library', Array.from(new Set(libs)), target)
+    await this.updateLuaConfig('workspace.library', Array.from(new Set(libs)), global)
   }
 
   public async addWorkspaceLibrary(
     libs: string | string[],
-    target: ConfigurationTarget = ConfigurationTarget.Workspace,
+    global: boolean = false,
   ): Promise<void> {
     const list = Array.isArray(libs) ? libs : [libs]
     const current = new Set(this.workspaceLibrary)
     for (const lib of list) {
       current.add(lib)
     }
-    await this.setWorkspaceLibrary(Array.from(current), target)
+    await this.setWorkspaceLibrary(Array.from(current), global)
   }
 
   public async removeWorkspaceLibrary(
     predicate: string | ((lib: string) => boolean),
-    target: ConfigurationTarget = ConfigurationTarget.Workspace,
+    global: boolean = false,
   ): Promise<void> {
-    const filterFn = typeof predicate === 'string'
-      ? (lib: string) => lib !== predicate
-      : (lib: string) => !predicate(lib)
+    const filterFn
+      = typeof predicate === 'string'
+        ? (lib: string) => lib !== predicate
+        : (lib: string) => !predicate(lib)
     const next = this.workspaceLibrary.filter(filterFn)
-    await this.setWorkspaceLibrary(next, target)
+    await this.setWorkspaceLibrary(next, global)
   }
 
   dispose() {
