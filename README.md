@@ -8,11 +8,25 @@ You can also custom the server path([`luals.serverDir`](settings.md#lualsserverd
 ## Features
 
 - All supported features by the server
-- Nvim lua development (check setting `luals.nvimLua.enable`)
+- Neovim Lua development (see [Neovim Lua Development](#neovim-lua-development))
 
 ## Install
 
 `:CocInstall coc-luals`
+
+## Neovim Lua Development
+
+coc-luals provides Neovim Lua development support with dynamic library import.
+
+### Settings
+
+- `luals.nvimLua.enable` (default: `false`): Enable Neovim Lua development support, automatically imports `$VIMRUNTIME`.
+- `luals.nvimLua.library` (default: `[]`): Pre-imported Neovim lua plugin library names, for example: `["nvim-treesitter"]`.
+
+### Features
+
+- **Completion**: When writing `require('...')` or `---@module '...'`, completion includes modules from runtime plugins. Completing an unimported module dynamically imports its plugin library into the workspace.
+- **Code Action**: Provides a quickfix code action (`Import library '<name>' to workspace`) on `require('...')` or `---@module '...'` expressions to dynamically import the corresponding plugin library.
 
 ## [Settings (Click me)](settings.md)
 
