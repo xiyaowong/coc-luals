@@ -18,12 +18,12 @@ import type {
 import type { NvimLuaLibrary } from './util'
 import type { Ctx } from '@/ctx'
 import path from 'node:path'
-import { commands, CompletionItemKind, disposeAll, workspace } from 'coc.nvim'
+import { CodeActionKind, commands, CompletionItemKind, disposeAll, workspace } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import { DidChangeConfigurationNotification } from 'vscode-languageserver-protocol'
 import { registerCommand } from './util'
 
-export class NvimLua implements CompletionItemProvider, Disposable, CodeActionProvider {
+export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disposable {
   private readonly disposables: Disposable[] = []
 
   private libraries: NvimLuaLibrary[] = []
@@ -201,6 +201,7 @@ export class NvimLua implements CompletionItemProvider, Disposable, CodeActionPr
               `* **Plugin:** \`${lib.name}\``,
               `* **Library Path:** \`${lib.path}\``,
               `* **Workspace Status:** ${isImported ? 'Already imported' : '⚡ **Auto-import library on completion**'}`,
+              '',
               `**Exported modules in \`${lib.name}\`:**`,
               ...lib.modules.map(m => `- \`${m}\``),
             ].join('\n'),
@@ -227,14 +228,56 @@ export class NvimLua implements CompletionItemProvider, Disposable, CodeActionPr
     return item
   }
 
-  // TODO: @Agent 光标在 require 或者 @module 上时，提供导入库的 code action
-  provideCodeActions(document: LinesTextDocument, range: Range, context: CodeActionContext, token: CancellationToken): ProviderResult<(Command | CodeAction)[]> {
-    throw new Error('Method not implemented.')
-  }
+  async provideCodeActions(
+    document: LinesTextDocument,
+    range: Range,
+    _context: CodeActionContext,
+    _token: CancellationToken,
+  ): Promise<(Command | CodeAction)[] | undefined> {
+    if (!this.nvimLuaEnable) return undefined
+    if (this.libraries.length === 0) {
+      await this.collectLibraries()
+    }
+    if (this.libraries.length === 0) return undefined
 
-  // TODO: @Agent
-  resolveCodeAction?(codeAction: CodeAction, token: CancellationToken): ProviderResult<CodeAction> {
-    throw new Error('Method not implemented.')
+    const line = document.lineAt(range.start.line).text
+    const regex = /(?:require\s*\(?|---@module\s+)['"]([^'"]+)['"]/g
+    const cursorChar = range.start.character
+
+    let matchedModule: string | undefined
+
+    for (const match of line.matchAll(regex)) {
+      const matchStart = match.index
+      const matchEnd = match.index + match[0].length
+      if (cursorChar >= matchStart && cursorChar <= matchEnd) {
+        matchedModule = match[1]
+        break
+      }
+    }
+
+    if (!matchedModule) return undefined
+
+    const imported = new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+    const actions: CodeAction[] = []
+
+    for (const lib of this.libraries) {
+      if (imported.has(lib.name)) continue
+
+      if (lib.name === matchedModule || lib.modules.includes(matchedModule)) {
+        actions.push({
+          title: `Import library '${lib.name}' to workspace`,
+          kind: CodeActionKind.QuickFix,
+          isPreferred: true,
+          command: {
+            title: 'Import Library',
+            command: 'lua._importLibrary',
+            arguments: [lib.name],
+          },
+        })
+      }
+    }
+
+    return actions
   }
 
   dispose(): void {
