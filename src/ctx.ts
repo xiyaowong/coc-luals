@@ -14,9 +14,9 @@ export class Ctx implements Disposable {
 
   private client: LanguageClient | undefined
   public readonly config = new Config()
-  private readonly outputChannel: OutputChannel
+  public readonly outputChannel: OutputChannel
   public readonly installer: Installer
-  private readonly nvimLua: NvimLua
+  public readonly nvimLua: NvimLua
 
   private usage = ''
 

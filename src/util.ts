@@ -17,12 +17,6 @@ export type LuaDocument = TextDocument & { languageId: 'lua' }
 
 export const LUA_DOCUMENT_SELECTOR = { language: 'lua' } as const satisfies DocumentSelector
 
-export interface NvimLuaLibrary {
-  name: string
-  modules: string[]
-  path: string
-}
-
 export function isLuaDocument(document: TextDocument): document is LuaDocument {
   const ret = document.languageId === 'lua'
   return ret

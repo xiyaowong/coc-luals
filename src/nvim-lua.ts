@@ -15,12 +15,11 @@ import type {
   ProviderResult,
   Range,
 } from 'coc.nvim'
-import type { NvimLuaLibrary } from './util'
+import type { NvimLuaLibrary } from './nvim-lua/collector'
 import type { Ctx } from '@/ctx'
-import path from 'node:path'
 import { CodeActionKind, commands, CompletionItemKind, disposeAll, workspace } from 'coc.nvim'
-import * as fs from 'fs-extra'
 import { DidChangeConfigurationNotification } from 'vscode-languageserver-protocol'
+import { collectLibraries } from './nvim-lua/collector'
 import { registerCommand } from './util'
 
 export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disposable {
@@ -33,6 +32,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     this.disposables.push(
       registerCommand('_importLibrary', name => this.importLibrary(name), true),
       registerCommand('_collectLibraries', () => this.collectLibraries(), true),
+      registerCommand('_inspectLibraries', () => this.inspectLibraries(), true),
       registerCommand('_updateConfiguration', () => this.updateConfiguration(), true),
     )
   }
@@ -50,6 +50,56 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
       if (lib.name === name) return true
       return lib.modules.includes(name)
     })
+  }
+
+  private async inspectLibraries() {
+    if (this.libraries.length === 0) {
+      await this.collectLibraries()
+    }
+
+    const output = this.ctx.outputChannel
+    const importedSet = new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+
+    const importedLibs: NvimLuaLibrary[] = []
+    const availableLibs: NvimLuaLibrary[] = []
+
+    for (const lib of this.libraries) {
+      if (importedSet.has(lib.name)) {
+        importedLibs.push(lib)
+      } else {
+        availableLibs.push(lib)
+      }
+    }
+
+    output.appendLine('=== Nvim Lua Libraries ===')
+    output.appendLine('')
+    output.appendLine(`Imported (${importedLibs.length}):`)
+    if (importedLibs.length === 0) {
+      output.appendLine('  (none)')
+    } else {
+      for (const lib of importedLibs) {
+        const source = this.dynamicLibraries.has(lib.name) ? 'dynamic' : 'config'
+        output.appendLine(`- ${lib.name} [${source}] (${lib.path})`)
+        for (const mod of lib.modules) {
+          output.appendLine(`  - ${mod}`)
+        }
+      }
+    }
+
+    output.appendLine('')
+    output.appendLine(`Available (${availableLibs.length}):`)
+    if (availableLibs.length === 0) {
+      output.appendLine('  (none)')
+    } else {
+      for (const lib of availableLibs) {
+        output.appendLine(`- ${lib.name} (${lib.path})`)
+        for (const mod of lib.modules) {
+          output.appendLine(`  - ${mod}`)
+        }
+      }
+    }
+
+    output.show()
   }
 
   private async updateConfiguration() {
@@ -103,30 +153,6 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     return result
   }
 
-  private async scanPlugin(pluginPath: string): Promise<NvimLuaLibrary | undefined> {
-    const pluginName = path.basename(pluginPath)
-    const luaDir = path.join(pluginPath, 'lua')
-    if (!(await fs.pathExists(luaDir))) return undefined
-
-    const subEntries = (await fs.readdir(luaDir, { withFileTypes: true }).catch(() => [])) as fs.Dirent[]
-    const modules: string[] = []
-
-    await Promise.all(
-      subEntries.map(async (item) => {
-        if (item.isFile() && item.name.endsWith('.lua')) {
-          modules.push(item.name.slice(0, -4))
-        } else if (item.isDirectory()) {
-          if (await fs.pathExists(path.join(luaDir, item.name, 'init.lua'))) {
-            modules.push(item.name)
-          }
-        }
-      }),
-    )
-
-    if (modules.length === 0) return undefined
-    return { name: pluginName, path: luaDir, modules }
-  }
-
   private collectLibraries = async () => {
     if (!this.nvimLuaEnable) {
       this.libraries = []
@@ -134,27 +160,10 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     }
 
     const runtimePaths = (await workspace.nvim.request('nvim_list_runtime_paths')) as string[]
-
-    // TODO: @Agent support other plugin managers like packer.nvim, vim-plug, etc.
-    const lazyPath = runtimePaths.find(p => p.includes('lazy.nvim'))
-    if (!lazyPath) {
-      this.libraries = []
-      return
-    }
-
-    const lazyRoot = path.dirname(lazyPath)
-    if (!(await fs.pathExists(lazyRoot))) {
-      this.libraries = []
-      return
-    }
-
-    const entries = await fs.readdir(lazyRoot, { withFileTypes: true })
-    const pluginPaths = entries.filter(e => e.isDirectory()).map(e => path.join(lazyRoot, e.name))
-    const lazyLibraries = [...await Promise.all(pluginPaths.map(this.scanPlugin))].filter((lib): lib is NvimLuaLibrary => Boolean(lib))
-    this.libraries = lazyLibraries
+    this.libraries = await collectLibraries(runtimePaths)
   }
 
-  async importLibrary(libraryName: string) {
+  private async importLibrary(libraryName: string) {
     const lib = this.findLibrary(libraryName)
     if (!lib) return
 
