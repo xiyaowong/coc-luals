@@ -1,19 +1,13 @@
-import type {
-  Disposable,
-  ExtensionContext,
-  LanguageClientOptions,
-  OutputChannel,
-  ServerOptions,
-} from 'coc.nvim'
+import type { Disposable, ExtensionContext, LanguageClientOptions, OutputChannel, ServerOptions } from 'coc.nvim'
 import { execSync } from 'node:child_process'
 import path from 'node:path'
-import * as coc from 'coc.nvim'
-import { disposeAll, events, LanguageClient, services, window, workspace } from 'coc.nvim'
+import { commands, disposeAll, events, executable, LanguageClient, languages, services, window, workspace } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
 import { Config } from './config'
 import { Installer } from './installer'
-import { compareVersion, isLuaDocument, registerCommand, withPrefix } from './util'
+import { NvimLua } from './nvim-lua'
+import { CLIENT_ID, compareVersion, isLuaDocument, LUA_DOCUMENT_SELECTOR, registerCommand, withPrefix } from './util'
 
 export class Ctx implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -22,24 +16,31 @@ export class Ctx implements Disposable {
   public readonly config = new Config()
   private readonly outputChannel: OutputChannel
   public readonly installer: Installer
+  private readonly nvimLua: NvimLua
 
   private usage = ''
-  private readonly queue: Promise<void> = Promise.resolve()
 
   constructor(public readonly extCtx: ExtensionContext) {
     this.installer = new Installer(this)
     this.outputChannel = window.createOutputChannel('lua')
+    this.nvimLua = new NvimLua(this)
+
+    const completionProvider = languages.registerCompletionItemProvider('coc-luals', 'Lua', LUA_DOCUMENT_SELECTOR, this.nvimLua, ['\'', '"', '@'])
+    const codeActionProvider = languages.registerCodeActionProvider(LUA_DOCUMENT_SELECTOR, this.nvimLua, CLIENT_ID, ['quickfix'])
 
     this.disposables.push(
       // this.installer,
       this.outputChannel,
+      this.nvimLua,
+      completionProvider,
+      codeActionProvider,
       registerCommand('install', async () => {
         if (this.client && this.client.needsStop()) {
           await this.client.stop()
         }
         await this.installer.downloadServer()
         setTimeout(() => {
-          coc.commands.executeCommand('lua.restart')
+          commands.executeCommand('lua.restart')
         }, 1000)
       }),
       registerCommand('checkUpdate', () => this.checkUpdate(true)),
@@ -51,15 +52,9 @@ export class Ctx implements Disposable {
         window.showNotification({ title: 'coc-luals', content: this.usage })
       }),
       registerCommand('reloadFFIMeta', async () => {
-        this.client?.sendRequest(ExecuteCommandRequest.type, {
-          command: 'lua.reloadFFIMeta',
-        })
+        this.client?.sendRequest(ExecuteCommandRequest.type, { command: 'lua.reloadFFIMeta' })
       }),
     )
-  }
-
-  public serial(fn: () => Promise<void>) {
-    this.queue.then(fn)
   }
 
   resolveBin(): [string, string[]] | undefined {
@@ -76,7 +71,7 @@ export class Ctx implements Disposable {
     )
     if (!fs.existsSync(bin)) return
 
-    if (!coc.executable(bin)) {
+    if (!executable(bin)) {
       window.showErrorMessage(withPrefix(`${bin} is not executable`))
       return
     }
@@ -86,7 +81,7 @@ export class Ctx implements Disposable {
       path.join(serverDir, 'bin', 'main.lua'),
       `--locale=${this.config.locale}`,
     ].concat(workspace.getConfiguration('Lua').get<string[]>('misc.parameters')!)
-    if (this.config.logPath.length > 0) args.push(`--logpath=${this.config.logPath}`)
+    if (this.config.logPath) args.push(`--logpath=${this.config.logPath}`)
 
     return [bin, args]
   }
@@ -131,7 +126,11 @@ export class Ctx implements Disposable {
 
     // not check update if user provide serverDir
     if (this.config.serverDir) {
-      if (force) window.showInformationMessage('You are using a custom serverDir, update check is skipped.')
+      if (force) {
+        window.showInformationMessage(
+          'You are using a custom serverDir, update check is skipped.',
+        )
+      }
       return
     }
 
@@ -148,14 +147,20 @@ export class Ctx implements Disposable {
     if (!latestVersion) return
 
     if (compareVersion(latestVersion[0], currentVersion) <= 0) {
-      if (force) window.showInformationMessage(`lua-language-server is up to date, current version: v${currentVersion}`)
+      if (force) {
+        window.showInformationMessage(
+          `lua-language-server is up to date, current version: v${currentVersion}`,
+        )
+      }
       return
     }
 
     const DOWNLOAD = 'Download the latest server'
     const CANCEL = 'Cancel'
     const ret = await window.showQuickPick([DOWNLOAD, CANCEL], {
-      title: withPrefix(`lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.`),
+      title: withPrefix(
+        `lua-language-server has a new release: ${latest.version}, you're using v${currentVersion}.`,
+      ),
     })
     if (ret === DOWNLOAD) {
       await this.client?.stop()
@@ -178,7 +183,7 @@ export class Ctx implements Disposable {
     const serverOptions: ServerOptions = { command, args }
 
     const clientOptions: LanguageClientOptions = {
-      documentSelector: [{ language: 'lua' }],
+      documentSelector: LUA_DOCUMENT_SELECTOR,
       progressOnInitialization: true,
       outputChannel: this.outputChannel,
       initializationOptions: {
@@ -196,36 +201,17 @@ export class Ctx implements Disposable {
         workspace: {
           configuration: async (params, token, next) => {
             const result = await next(params, token)
-
-            if (!this.config.nvimLuaEnable || !Array.isArray(result)) return result
-
-            const sectionIndex = params.items.findIndex(item => item.section === 'Lua')
-
-            if (sectionIndex === -1) return result
-
-            const configuration = result[sectionIndex]
-
-            const library = configuration.workspace.library || []
-
-            const runtime = await workspace.nvim.call('expand', ['$VIMRUNTIME/lua'])
-            if (!library.includes(runtime)) library.push(runtime)
-
-            configuration.workspace.library = library
-
-            result[sectionIndex] = configuration
-
-            return result
+            return this.nvimLua.patchConfiguration(params, result)
           },
         },
       },
     }
 
-    return new LanguageClient(
-      'luals',
-      'Lua Language Server',
-      serverOptions,
-      clientOptions,
-    )
+    return new LanguageClient(CLIENT_ID, 'Lua Language Server', serverOptions, clientOptions)
+  }
+
+  get clientInstance(): LanguageClient | undefined {
+    return this.client
   }
 
   async startServer() {
