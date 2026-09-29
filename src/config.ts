@@ -17,15 +17,15 @@ export class Config implements Disposable {
     this.disposables.push(
       workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration(CONFIG_NAME)) {
-          this.updateConfig()
+          this.refreshConfig()
         }
       }),
     )
 
-    this.updateConfig()
+    this.refreshConfig()
   }
 
-  private updateConfig() {
+  private refreshConfig() {
     const cfg = workspace.getConfiguration(CONFIG_NAME)
 
     this.serverDir = cfg.get<string>('serverDir')?.trim() || undefined
@@ -36,6 +36,53 @@ export class Config implements Disposable {
       ? cfg.get<boolean>('nvimLua.enable') || false
       : false
     this.nvimLuaLibrary = cfg.get<string[]>('nvimLua.library') || []
+  }
+
+  public getLuaConfig<T>(section: string, defaultValue: T): T {
+    return workspace.getConfiguration('Lua').get<T>(section, defaultValue)
+  }
+
+  public async updateLuaConfig(
+    section: string,
+    value: any,
+    global: boolean = false,
+  ): Promise<void> {
+    await workspace.getConfiguration('Lua').update(section, value, global)
+  }
+
+  public get workspaceLibrary(): string[] {
+    return this.getLuaConfig<string[]>('workspace.library', [])
+  }
+
+  public async setWorkspaceLibrary(
+    libs: string[],
+    global: boolean = false,
+  ): Promise<void> {
+    await this.updateLuaConfig('workspace.library', Array.from(new Set(libs)), global)
+  }
+
+  public async addWorkspaceLibrary(
+    libs: string | string[],
+    global: boolean = false,
+  ): Promise<void> {
+    const list = Array.isArray(libs) ? libs : [libs]
+    const current = new Set(this.workspaceLibrary)
+    for (const lib of list) {
+      current.add(lib)
+    }
+    await this.setWorkspaceLibrary(Array.from(current), global)
+  }
+
+  public async removeWorkspaceLibrary(
+    predicate: string | ((lib: string) => boolean),
+    global: boolean = false,
+  ): Promise<void> {
+    const filterFn
+      = typeof predicate === 'string'
+        ? (lib: string) => lib !== predicate
+        : (lib: string) => !predicate(lib)
+    const next = this.workspaceLibrary.filter(filterFn)
+    await this.setWorkspaceLibrary(next, global)
   }
 
   dispose() {
