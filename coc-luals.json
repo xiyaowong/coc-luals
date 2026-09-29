@@ -53,20 +53,24 @@
       "title": "Lua: Restart extension"
     },
     {
-      "command": "lua.showVersion",
-      "title": "Lua: Echo server version"
+      "command": "lua.checkUpdate",
+      "title": "Lua: Check server update"
     },
     {
-      "command": "lua.checkUpdate",
-      "title": "Lua: Check update"
+      "command": "lua.showVersion",
+      "title": "Lua: Show server version"
     },
     {
       "command": "lua.showUsage",
-      "title": "Lua: Show usage information"
+      "title": "Lua: Show status and resource usage"
+    },
+    {
+      "command": "lua.showChangelog",
+      "title": "Lua: Show server changelog"
     },
     {
       "command": "lua.reloadFFIMeta",
-      "title": "Lua: Reload luajit ffi meta"
+      "title": "Lua: Reload LuaJIT FFI meta"
     }
   ]
 }

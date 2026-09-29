@@ -56,14 +56,15 @@ Run `:CocList lls_addons` to open the addon manager list.
 
 ## Commands
 
-| Command             | Description              |
-| ------------------- | ------------------------ |
-| `lua.install`       | Install or update server |
-| `lua.restart`       | Restart extension        |
-| `lua.checkUpdate`   | Check update             |
-| `lua.showVersion`   | Echo server version      |
-| `lua.showUsage`     | Show usage information   |
-| `lua.reloadFFIMeta` | Reload luajit ffi meta   |
+| Command            | Description                     |
+| ------------------ | ------------------------------- |
+| `lua.install`      | Install or update server        |
+| `lua.restart`      | Restart extension               |
+| `lua.checkUpdate`  | Check server update             |
+| `lua.showVersion`  | Show server version             |
+| `lua.showUsage`    | Show status and resource usage  |
+| `lua.showChangelog`| Show server changelog           |
+| `lua.reloadFFIMeta`| Reload LuaJIT FFI meta          |
 
 ## License
 

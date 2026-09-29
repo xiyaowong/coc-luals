@@ -53,6 +53,7 @@ export class Ctx implements Disposable {
       registerCommand('showUsage', () => {
         window.showNotification({ title: 'coc-luals', content: this.usage })
       }),
+      registerCommand('showChangelog', () => this.showChangelog()),
       registerCommand('reloadFFIMeta', async () => {
         this.client?.sendRequest(ExecuteCommandRequest.type, { command: 'lua.reloadFFIMeta' })
       }),
@@ -174,6 +175,26 @@ export class Ctx implements Disposable {
       }
       this.client?.start()
     }
+  }
+
+  async showChangelog() {
+    const serverPath = this.config.serverDir ? this.config.serverDir : this.installer.serverPath
+    const changelogPath = path.join(serverPath, 'changelog.md')
+    if (!fs.existsSync(changelogPath)) {
+      window.showWarningMessage('Changelog not found')
+      return
+    }
+
+    const content = await fs.readFile(changelogPath, 'utf8')
+    const lines = content.split(/\r?\n/)
+    const { nvim } = workspace
+    const buf = await nvim.createNewBuffer(false, true)
+    await buf.setLines(lines, { start: 0, end: -1 })
+    await nvim.command(`belowright split +buffer\\ ${buf.id}`)
+    await buf.setOption('filetype', 'markdown')
+    await buf.setOption('buftype', 'nofile')
+    await buf.setOption('bufhidden', 'wipe')
+    await buf.setOption('modifiable', false)
   }
 
   createClient(): undefined | LanguageClient {
