@@ -25,12 +25,12 @@
 ## `luals.nvimLua.enable`
 - type: `boolean`
 - default: `false`
-- description:    Enable the nvim lua development
+- description:    Enable Neovim Lua development support, automatically imports $VIMRUNTIME
 
 ## `luals.nvimLua.library`
 - type: `array`
 - default: `[]`
-- description:    Nvim lua plugin library name or path, for example: `"nvim-treesitter"`
+- description:    Pre-imported Neovim lua plugin library names, for example: `"nvim-treesitter"`
 
 ## `luals.checkUpdate`
 - type: `boolean`

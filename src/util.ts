@@ -1,9 +1,10 @@
-import type { TextDocument } from 'coc.nvim'
+import type { DocumentSelector, TextDocument } from 'coc.nvim'
 import { commands } from 'coc.nvim'
 
 export const COMMAND_NAME = 'lua'
 export const CONFIG_NAME = 'luals'
 export const ROOT_NAME = 'luals'
+export const CLIENT_ID = 'luals'
 
 export type Locale = 'en-us' | 'es-419' | 'ja-jp' | 'pt-br' | 'zh-cn' | 'zh-tw'
 
@@ -13,6 +14,8 @@ export interface Release {
 }
 
 export type LuaDocument = TextDocument & { languageId: 'lua' }
+
+export const LUA_DOCUMENT_SELECTOR = { language: 'lua' } as const satisfies DocumentSelector
 
 export function isLuaDocument(document: TextDocument): document is LuaDocument {
   const ret = document.languageId === 'lua'
