@@ -38,9 +38,9 @@ coc-luals provides Neovim Lua development support with dynamic library import.
 | ------------------- | ------------------------ |
 | `lua.install`       | Install or update server |
 | `lua.restart`       | Restart extension        |
-| `lua.version`       | Echo server version      |
 | `lua.checkUpdate`   | Check update             |
-| `lua.showTooltip`   | Show usage information   |
+| `lua.showVersion`   | Echo server version      |
+| `lua.showUsage`     | Show usage information   |
 | `lua.reloadFFIMeta` | Reload luajit ffi meta   |
 
 ## License
