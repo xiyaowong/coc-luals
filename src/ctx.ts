@@ -29,7 +29,6 @@ export class Ctx implements Disposable {
     const codeActionProvider = languages.registerCodeActionProvider(LUA_DOCUMENT_SELECTOR, this.nvimLua, CLIENT_ID, ['quickfix'])
 
     this.disposables.push(
-      // this.installer,
       this.outputChannel,
       this.nvimLua,
       completionProvider,

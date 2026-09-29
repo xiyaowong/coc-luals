@@ -17,7 +17,7 @@ import type {
 } from 'coc.nvim'
 import type { NvimLuaLibrary } from './nvim-lua/collector'
 import type { Ctx } from '@/ctx'
-import { CodeActionKind, commands, CompletionItemKind, disposeAll, workspace } from 'coc.nvim'
+import { CodeActionKind, CompletionItemKind, disposeAll, workspace } from 'coc.nvim'
 import { DidChangeConfigurationNotification } from 'vscode-languageserver-protocol'
 import { collectLibraries } from './nvim-lua/collector'
 import { registerCommand } from './util'
@@ -31,9 +31,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
   constructor(private readonly ctx: Ctx) {
     this.disposables.push(
       registerCommand('_importLibrary', name => this.importLibrary(name), true),
-      registerCommand('_collectLibraries', () => this.collectLibraries(), true),
       registerCommand('_inspectLibraries', () => this.inspectLibraries(), true),
-      registerCommand('_updateConfiguration', () => this.updateConfiguration(), true),
     )
   }
 
@@ -45,11 +43,12 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     return this.ctx.config.nvimLuaLibrary
   }
 
+  private get importedLibraries(): Set<string> {
+    return new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+  }
+
   private findLibrary(name: string): NvimLuaLibrary | undefined {
-    return this.libraries.find((lib) => {
-      if (lib.name === name) return true
-      return lib.modules.includes(name)
-    })
+    return this.libraries.find(lib => lib.name === name || lib.modules.includes(name))
   }
 
   private async inspectLibraries() {
@@ -58,7 +57,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     }
 
     const output = this.ctx.outputChannel
-    const importedSet = new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+    const importedSet = this.importedLibraries
 
     const importedLibs: NvimLuaLibrary[] = []
     const availableLibs: NvimLuaLibrary[] = []
@@ -71,33 +70,26 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
       }
     }
 
-    output.appendLine('=== Nvim Lua Libraries ===')
-    output.appendLine('')
-    output.appendLine(`Imported (${importedLibs.length}):`)
-    if (importedLibs.length === 0) {
-      output.appendLine('  (none)')
-    } else {
-      for (const lib of importedLibs) {
-        const source = this.dynamicLibraries.has(lib.name) ? 'dynamic' : 'config'
-        output.appendLine(`- ${lib.name} [${source}] (${lib.path})`)
+    const printLibs = (title: string, libs: NvimLuaLibrary[], showSource = false) => {
+      output.appendLine(`${title} (${libs.length}):`)
+      if (libs.length === 0) {
+        output.appendLine('  (none)')
+        return
+      }
+      for (const lib of libs) {
+        const source = showSource ? ` [${this.dynamicLibraries.has(lib.name) ? 'dynamic' : 'config'}]` : ''
+        output.appendLine(`- ${lib.name}${source} (${lib.path})`)
         for (const mod of lib.modules) {
           output.appendLine(`  - ${mod}`)
         }
       }
     }
 
+    output.appendLine('=== Nvim Lua Libraries ===')
     output.appendLine('')
-    output.appendLine(`Available (${availableLibs.length}):`)
-    if (availableLibs.length === 0) {
-      output.appendLine('  (none)')
-    } else {
-      for (const lib of availableLibs) {
-        output.appendLine(`- ${lib.name} (${lib.path})`)
-        for (const mod of lib.modules) {
-          output.appendLine(`  - ${mod}`)
-        }
-      }
-    }
+    printLibs('Imported', importedLibs, true)
+    output.appendLine('')
+    printLibs('Available', availableLibs)
 
     output.show()
   }
@@ -123,23 +115,12 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     const runtime = await workspace.nvim.call('expand', ['$VIMRUNTIME/lua'])
     if (!library.includes(runtime)) library.push(runtime)
 
-    if (
-      this.libraries.length === 0
-      && (this.nvimLuaLibrary.length > 0 || this.dynamicLibraries.size > 0)
-    ) {
+    const targetLibs = this.importedLibraries
+    if (this.libraries.length === 0 && targetLibs.size > 0) {
       await this.collectLibraries()
     }
 
-    if (this.nvimLuaLibrary.length > 0) {
-      for (const libName of this.nvimLuaLibrary) {
-        const lib = this.findLibrary(libName)
-        if (lib && !library.includes(lib.path)) {
-          library.push(lib.path)
-        }
-      }
-    }
-
-    for (const libName of this.dynamicLibraries) {
+    for (const libName of targetLibs) {
       const lib = this.findLibrary(libName)
       if (lib && !library.includes(lib.path)) {
         library.push(lib.path)
@@ -170,7 +151,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     if (this.dynamicLibraries.has(lib.name)) return
     this.dynamicLibraries.add(lib.name)
 
-    await commands.executeCommand('lua._updateConfiguration')
+    await this.updateConfiguration()
   }
 
   async provideCompletionItems(
@@ -180,17 +161,18 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     _context?: CompletionContext,
   ): Promise<CompletionItem[] | CompletionList | undefined> {
     if (!this.nvimLuaEnable) return undefined
-    if (this.libraries.length === 0) {
-      await this.collectLibraries()
-    }
-    if (this.libraries.length === 0) return undefined
 
     const line = document.lineAt(position.line).text
     const textBeforeCursor = line.slice(0, position.character)
     const match = textBeforeCursor.match(/(?:require\s*\(?|---@module\s+)['"]([^'"]*)$/)
     if (!match) return undefined
 
-    const imported = new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+    if (this.libraries.length === 0) {
+      await this.collectLibraries()
+    }
+    if (this.libraries.length === 0) return undefined
+
+    const imported = this.importedLibraries
     const items: CompletionItem[] = []
 
     for (const lib of this.libraries) {
@@ -266,7 +248,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
 
     if (!matchedModule) return undefined
 
-    const imported = new Set([...this.nvimLuaLibrary, ...this.dynamicLibraries])
+    const imported = this.importedLibraries
     const actions: CodeAction[] = []
 
     for (const lib of this.libraries) {

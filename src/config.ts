@@ -28,23 +28,14 @@ export class Config implements Disposable {
   private updateConfig() {
     const cfg = workspace.getConfiguration(CONFIG_NAME)
 
-    const serverDir = cfg.get<string>('serverDir')
-    this.serverDir = this.isStringEmpty(serverDir) ? undefined : serverDir
-
-    const logPath = cfg.get<string>('logPath')
-    this.logPath = this.isStringEmpty(logPath) ? undefined : serverDir
-
+    this.serverDir = cfg.get<string>('serverDir')?.trim() || undefined
+    this.logPath = cfg.get<string>('logPath')?.trim() || undefined
     this.locale = cfg.get<Locale>('locale') || 'en-us'
     this.checkUpdate = cfg.get<boolean>('checkUpdate') || false
-
     this.nvimLuaEnable = workspace.isNvim
       ? cfg.get<boolean>('nvimLua.enable') || false
       : false
     this.nvimLuaLibrary = cfg.get<string[]>('nvimLua.library') || []
-  }
-
-  private isStringEmpty(str: string | undefined): boolean {
-    return !str || str.trim() === ''
   }
 
   dispose() {

@@ -66,10 +66,9 @@ export async function collectLibraries(runtimePaths: string[]): Promise<NvimLuaL
     }
 
     // 2. vim-plug: plugins live under .../plugged/<plugin>
-    const pluggedIndex = normalized.lastIndexOf(`${path.sep}plugged${path.sep}`)
-    if (pluggedIndex !== -1) {
-      const pluggedDir = normalized.slice(0, pluggedIndex + `${path.sep}plugged`.length)
-      await addChildrenDirs(pluggedDir)
+    const plugMatch = normalized.match(/(.*[\\/]plugged)[\\/]/)
+    if (plugMatch) {
+      await addChildrenDirs(plugMatch[1])
       continue
     }
 
@@ -86,10 +85,9 @@ export async function collectLibraries(runtimePaths: string[]): Promise<NvimLuaL
     }
 
     // 4. mini.deps: plugins typically installed under .../deps/<plugin>
-    const depsIndex = normalized.lastIndexOf(`${path.sep}deps${path.sep}`)
-    if (depsIndex !== -1) {
-      const depsDir = normalized.slice(0, depsIndex + `${path.sep}deps`.length)
-      await addChildrenDirs(depsDir)
+    const depsMatch = normalized.match(/(.*[\\/]deps)[\\/]/)
+    if (depsMatch) {
+      await addChildrenDirs(depsMatch[1])
       continue
     }
 
@@ -103,15 +101,10 @@ export async function collectLibraries(runtimePaths: string[]): Promise<NvimLuaL
     [...pluginRoots].map(dir => scanPlugin(dir)),
   )
 
-  const libraries: NvimLuaLibrary[] = []
-  const seenNames = new Set<string>()
-
-  for (const lib of results) {
-    if (lib && !seenNames.has(lib.name)) {
-      seenNames.add(lib.name)
-      libraries.push(lib)
-    }
-  }
-
-  return libraries
+  const seen = new Set<string>()
+  return results.filter((lib): lib is NvimLuaLibrary => {
+    if (!lib || seen.has(lib.name)) return false
+    seen.add(lib.name)
+    return true
+  })
 }
