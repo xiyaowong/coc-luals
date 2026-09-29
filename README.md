@@ -9,6 +9,7 @@ You can also custom the server path([`luals.serverDir`](settings.md#lualsserverd
 
 - All supported features by the server
 - Neovim Lua development (see [Neovim Lua Development](#neovim-lua-development))
+- Addon manager (see [Addon Manager](#addon-manager))
 
 ## Install
 
@@ -27,6 +28,27 @@ coc-luals provides Neovim Lua development support with dynamic library import.
 
 - **Completion**: When writing `require('...')` or `---@module '...'`, completion includes modules from runtime plugins. Completing an unimported module dynamically imports its plugin library into the workspace.
 - **Code Action**: Provides a quickfix code action (`Import library '<name>' to workspace`) on `require('...')` or `---@module '...'` expressions to dynamically import the corresponding plugin library.
+
+## Addon Manager
+
+Manage addons from [LuaLS/LLS-Addons](https://github.com/LuaLS/LLS-Addons).
+
+Run `:CocList lls_addons` to open the addon manager list.
+
+### Status Indicators
+
+- `[+]`: Enabled
+- `[*]`: Installed (disabled)
+- `[-]`: Not installed
+
+### Keymaps & Actions
+
+- `<CR>`: Enable addon (default action; installs automatically if not yet installed).
+- `<Tab>`: Open action menu to choose an action:
+  - `enable`: Enable the addon and apply settings
+  - `disable`: Disable the addon and revert settings
+  - `install`: Download and install the addon
+  - `uninstall`: Uninstall the addon
 
 ## [Settings (Click me)](settings.md)
 
