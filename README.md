@@ -33,7 +33,7 @@ coc-luals provides Neovim Lua development support with dynamic library import.
 
 Manage addons from [LuaLS/LLS-Addons](https://github.com/LuaLS/LLS-Addons).
 
-Run `:CocList lls_addons` to open the addon manager list.
+Run `:CocCommand lua.openAddonManager` or `:CocList lls_addons` to open the addon manager list.
 
 ### Status Indicators
 
@@ -64,6 +64,7 @@ Run `:CocList lls_addons` to open the addon manager list.
 | `lua.showVersion`  | Show server version             |
 | `lua.showUsage`    | Show status and resource usage  |
 | `lua.showChangelog`| Show server changelog           |
+| `lua.openAddonManager` | Open addon manager          |
 | `lua.reloadFFIMeta`| Reload LuaJIT FFI meta          |
 
 ## License

@@ -54,6 +54,7 @@ export class Ctx implements Disposable {
         window.showNotification({ title: 'coc-luals', content: this.usage })
       }),
       registerCommand('showChangelog', () => this.showChangelog()),
+      registerCommand('openAddonManager', () => workspace.nvim.command('CocList lls_addons')),
       registerCommand('reloadFFIMeta', async () => {
         this.client?.sendRequest(ExecuteCommandRequest.type, { command: 'lua.reloadFFIMeta' })
       }),

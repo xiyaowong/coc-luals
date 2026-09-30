@@ -69,6 +69,10 @@
       "title": "Lua: Show server changelog"
     },
     {
+      "command": "lua.openAddonManager",
+      "title": "Lua: Open addon manager"
+    },
+    {
       "command": "lua.reloadFFIMeta",
       "title": "Lua: Reload LuaJIT FFI meta"
     }
