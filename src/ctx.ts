@@ -253,7 +253,7 @@ export class Ctx implements Disposable {
 
   activateStatusBar() {
     if (!this.client) return
-    // window status bar
+
     const bar = window.createStatusBarItem()
     this.disposables.push(bar)
 
@@ -278,8 +278,9 @@ export class Ctx implements Disposable {
       'BufEnter',
       async () => {
         const doc = await workspace.document
-        if (isLuaDocument(doc.textDocument)) {
-          if (!keepHide) bar.show()
+        const show = isLuaDocument(doc.textDocument) && !keepHide
+        if (show) {
+          bar.show()
         } else {
           bar.hide()
         }
