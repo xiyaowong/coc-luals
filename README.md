@@ -49,6 +49,7 @@ Run `:CocCommand lua.openAddonManager` or `:CocList lls_addons` to open the addo
   - `disable`: Disable the addon and revert settings
   - `install`: Download and install the addon
   - `uninstall`: Uninstall the addon
+  - `view on github`: Open the addon repository page on GitHub in browser
 
 ## [Settings (Click me)](settings.md)
 

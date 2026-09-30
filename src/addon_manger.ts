@@ -42,6 +42,7 @@ export class AddonManager extends BasicList {
     this.addAction('disable', async item => this.disableAddon(item.data))
     this.addAction('install', async item => this.installAddon(item.data).then(() => {}))
     this.addAction('uninstall', async item => this.uninstallAddon(item.data))
+    this.addAction('view on github', async item => this.viewOnGithub(item.data))
   }
 
   public get addonsDir(): string {
@@ -159,6 +160,11 @@ export class AddonManager extends BasicList {
     } catch (err: any) {
       window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
     }
+  }
+
+  public async viewOnGithub(addon: AddonItem): Promise<void> {
+    const url = `https://github.com/LuaLS/LLS-Addons/tree/main/addons/${addon.name}`
+    await workspace.openResource(url)
   }
 
   public async enableAddon(addon: AddonItem): Promise<void> {
