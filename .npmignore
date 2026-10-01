@@ -17,3 +17,5 @@ package-lock.json
 tsdown.config.mts
 luals-*.json
 coc-luals.json
+.qwen
+tsdown.config.ts
