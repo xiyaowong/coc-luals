@@ -344,7 +344,14 @@ export class Ctx implements Disposable {
     })
   }
 
-  dispose(): void {
+  async stopServer(): Promise<void> {
+    if (this.client && this.client.needsStop()) {
+      await this.client.stop()
+    }
+  }
+
+  async dispose(): Promise<void> {
+    await this.stopServer()
     disposeAll(this.disposables)
   }
 }

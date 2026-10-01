@@ -4,11 +4,12 @@ import { ensureDir } from 'fs-extra'
 import { Ctx } from './ctx'
 import { registerCommand, withPrefix } from './util'
 
-let ctx: Ctx
+let ctx: Ctx | undefined
 
 export async function activate(context: ExtensionContext): Promise<void> {
   context.subscriptions.push(
     registerCommand('restart', async () => {
+      await deactivate()
       disposeAll(context.subscriptions)
       await activate(context)
     }),
@@ -41,4 +42,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
   await ctx.startServer()
   await ctx.checkUpdate()
+}
+
+export async function deactivate(): Promise<void> {
+  if (ctx) {
+    await ctx.dispose()
+    ctx = undefined
+  }
 }
