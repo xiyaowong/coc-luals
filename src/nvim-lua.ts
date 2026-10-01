@@ -134,7 +134,7 @@ export class NvimLua implements CompletionItemProvider, CodeActionProvider, Disp
     return result
   }
 
-  private collectLibraries = async () => {
+  private async collectLibraries() {
     if (!this.nvimLuaEnable) {
       this.libraries = []
       return

@@ -4,8 +4,7 @@ import { commands } from 'coc.nvim'
 import { COMMAND_NAME } from './constants'
 
 export function isLuaDocument(document: TextDocument): document is LuaDocument {
-  const ret = document.languageId === 'lua'
-  return ret
+  return document.languageId === 'lua'
 }
 
 export function registerCommand(name: string, cmd: Cmd, internal = false) {

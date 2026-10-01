@@ -5,7 +5,7 @@ import { commands, disposeAll, events, executable, LanguageClient, languages, li
 import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
 import which from 'which'
-import { AddonManager } from './addon_manger'
+import { AddonManager } from './addon_manager'
 import { Config } from './config'
 import { CLIENT_ID, LUA_DOCUMENT_SELECTOR } from './constants'
 import { Installer } from './installer'
@@ -20,7 +20,7 @@ export class Ctx implements Disposable {
   public readonly outputChannel: OutputChannel
   public readonly installer: Installer
   public readonly nvimLua: NvimLua
-  public readonly addonManger: AddonManager
+  public readonly addonManager: AddonManager
 
   private usage = ''
 
@@ -28,11 +28,11 @@ export class Ctx implements Disposable {
     this.installer = new Installer(this)
     this.outputChannel = window.createOutputChannel('lua')
     this.nvimLua = new NvimLua(this)
-    this.addonManger = new AddonManager(this)
+    this.addonManager = new AddonManager(this)
 
     const completionProvider = languages.registerCompletionItemProvider('coc-luals', 'Lua', LUA_DOCUMENT_SELECTOR, this.nvimLua, ['\'', '"', '@'])
     const codeActionProvider = languages.registerCodeActionProvider(LUA_DOCUMENT_SELECTOR, this.nvimLua, CLIENT_ID, ['quickfix'])
-    const addonListProvider = listManager.registerList(this.addonManger)
+    const addonListProvider = listManager.registerList(this.addonManager)
 
     this.disposables.push(
       this.outputChannel,
@@ -113,7 +113,7 @@ export class Ctx implements Disposable {
       try {
         return execFileSync(cmd, ['--version'], { encoding: 'utf8' }).trim()
       } catch (err) {
-        console.log(err)
+        console.error(err)
       }
     } else {
       // must be based on the version of vscode extension
@@ -243,7 +243,7 @@ export class Ctx implements Disposable {
         workspace: {
           configuration: async (params, token, next) => {
             let result = await next(params, token)
-            result = this.addonManger.patchConfiguration(params, result)
+            result = this.addonManager.patchConfiguration(params, result)
             return this.nvimLua.patchConfiguration(params, result)
           },
         },

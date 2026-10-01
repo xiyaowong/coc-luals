@@ -33,7 +33,7 @@ export class Installer {
     let response: Response
     try {
       response = await fetch(
-        'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery ',
+        'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery',
         {
           method: 'POST',
           headers,
@@ -56,7 +56,7 @@ export class Installer {
       : 'linux'
     const targetPlatform = `${platform}-${process.arch}`
 
-    const release = await response.json()
+    const release = (await response.json()) as any
 
     const extension = release.results[0].extensions[0].versions[0]
 
