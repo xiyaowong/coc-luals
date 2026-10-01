@@ -1,7 +1,7 @@
 {
   "name": "coc-luals",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Lua extension using lua-language-server for coc.nvim",
   "author": "wongxy <xiyao.wong@foxmail.com>",
   "license": "MIT",
