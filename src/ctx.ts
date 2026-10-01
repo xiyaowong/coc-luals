@@ -1,9 +1,10 @@
 import type { Disposable, ExtensionContext, LanguageClientOptions, OutputChannel, ServerOptions } from 'coc.nvim'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { commands, disposeAll, events, executable, LanguageClient, languages, listManager, services, window, workspace } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
+import which from 'which'
 import { AddonManager } from './addon_manger'
 import { Config } from './config'
 import { Installer } from './installer'
@@ -62,42 +63,54 @@ export class Ctx implements Disposable {
   }
 
   resolveBin(): [string, string[]] | undefined {
-    // TODO: handle Lua.misc.executablePath
-    const serverDir = this.config.serverDir
-      ? this.config.serverDir
-      : this.installer.serverPath
+    let bin: string | undefined
 
-    const platform = process.platform
-    const bin = path.join(
-      serverDir,
-      'bin',
-      platform === 'win32' ? 'lua-language-server.exe' : 'lua-language-server',
-    )
-    if (!fs.existsSync(bin)) return
+    if (this.config.executablePath) {
+      bin = this.config.executablePath
+      if (!path.isAbsolute(bin)) {
+        try {
+          bin = which.sync(bin)
+        } catch {
+          window.showErrorMessage(withPrefix(`Executable "${this.config.executablePath}" not found in PATH. Please check your configuration.`))
+          return
+        }
+      }
 
-    if (!executable(bin)) {
-      window.showErrorMessage(withPrefix(`${bin} is not executable`))
-      return
+      if (!fs.existsSync(bin)) {
+        window.showErrorMessage(withPrefix(`Executable "${bin}" does not exist.`))
+        return
+      }
+
+      if (!executable(bin)) {
+        window.showErrorMessage(withPrefix(`"${bin}" is not executable.`))
+        return
+      }
+    } else {
+      const serverDir = this.config.serverDir || this.installer.serverPath
+      const platform = process.platform
+      bin = path.join(serverDir, 'bin', platform === 'win32' ? 'lua-language-server.exe' : 'lua-language-server')
+      if (!fs.existsSync(bin)) return
+
+      if (!executable(bin)) {
+        window.showErrorMessage(withPrefix(`${bin} is not executable`))
+        return
+      }
     }
 
-    const args: string[] = [
-      '-E',
-      path.join(serverDir, 'bin', 'main.lua'),
-      `--locale=${this.config.locale}`,
-    ].concat(workspace.getConfiguration('Lua').get<string[]>('misc.parameters')!)
+    const params = this.config.getLuaConfig<string[]>('misc.parameters', [])
+    const args: string[] = [`--locale=${this.config.locale}`, ...params]
     if (this.config.logPath) args.push(`--logpath=${this.config.logPath}`)
 
     return [bin, args]
   }
 
   async getCurrentVersion(): Promise<string | undefined> {
-    if (this.config.serverDir) {
+    if (this.config.useCustomServer) {
       const bin = this.resolveBin()
       if (!bin) return
-      const [cmd, args] = bin
-      args.push('--version')
+      const [cmd] = bin
       try {
-        return String(execSync(`${cmd} ${args.join(' ')}`)).trim()
+        return execFileSync(cmd, ['--version'], { encoding: 'utf8' }).trim()
       } catch (err) {
         console.log(err)
       }
@@ -129,10 +142,10 @@ export class Ctx implements Disposable {
     }
 
     // not check update if user provide serverDir
-    if (this.config.serverDir) {
+    if (this.config.useCustomServer) {
       if (force) {
         window.showInformationMessage(
-          'You are using a custom serverDir, update check is skipped.',
+          'You are using a custom server, update check is skipped.',
         )
       }
       return
@@ -179,8 +192,12 @@ export class Ctx implements Disposable {
   }
 
   async showChangelog() {
-    const serverPath = this.config.serverDir ? this.config.serverDir : this.installer.serverPath
-    const changelogPath = path.join(serverPath, 'changelog.md')
+    if (this.config.executablePath) {
+      window.showWarningMessage('Changelog is not available when using a custom server executable')
+      return
+    }
+    const serverDir = this.config.serverDir || this.installer.serverPath
+    const changelogPath = path.join(serverDir, 'changelog.md')
     if (!fs.existsSync(changelogPath)) {
       window.showWarningMessage('Changelog not found')
       return

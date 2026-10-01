@@ -101,6 +101,15 @@ export class Config implements Disposable {
     await this.setWorkspaceLibrary(next, global)
   }
 
+  public get executablePath(): string | undefined {
+    const exe = this.getLuaConfig<string>('misc.executablePath', '')
+    return exe.trim() || undefined
+  }
+
+  public get useCustomServer(): boolean {
+    return !!(this.serverDir || this.executablePath)
+  }
+
   dispose() {
     disposeAll(this.disposables)
   }
