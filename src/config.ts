@@ -1,7 +1,7 @@
 import type { Disposable } from 'coc.nvim'
 import type { Locale } from './util'
-import { disposeAll, workspace } from 'coc.nvim'
-import { CONFIG_NAME } from './util'
+import { commands, disposeAll, window, workspace } from 'coc.nvim'
+import { CONFIG_NAME, CONFIGS_NEED_RESTART } from './util'
 
 export class Config implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -18,6 +18,22 @@ export class Config implements Disposable {
       workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration(CONFIG_NAME)) {
           this.refreshConfig()
+        }
+
+        if (CONFIGS_NEED_RESTART.some(item => e.affectsConfiguration(item))) {
+          window.showNotification({
+            title: 'coc-luals',
+            content: 'Some settings require a restart to take effect.',
+            buttons: [
+              { index: 0, text: 'Restart' },
+              { index: 1, text: 'Later' },
+            ],
+            callback: async (index) => {
+              if (index === 0) {
+                setTimeout(() => commands.executeCommand('lua.restart'), 1000)
+              }
+            },
+          })
         }
       }),
     )

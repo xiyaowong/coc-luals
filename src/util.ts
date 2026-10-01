@@ -17,6 +17,13 @@ export type LuaDocument = TextDocument & { languageId: 'lua' }
 
 export const LUA_DOCUMENT_SELECTOR = { language: 'lua' } as const satisfies DocumentSelector
 
+export const CONFIGS_NEED_RESTART
+  = [
+    'Lua.misc.executablePath',
+    'Lua.misc.parameters',
+    ...(['serverDir', 'logPath', 'locale'].map(item => `${CONFIG_NAME}.${item}`)),
+  ]
+
 export function isLuaDocument(document: TextDocument): document is LuaDocument {
   const ret = document.languageId === 'lua'
   return ret
