@@ -37,26 +37,6 @@
 - default: `true`
 - description:    Automatically check for updates after startup.
 
-## `Lua.addonManager.enable`
-- type: `boolean`
-- default: `true`
-- description:    Whether the addon manager is enabled or not.
-
-## `Lua.addonManager.repositoryBranch`
-- type: `string`
-- default: `""`
-- description:    Specifies the git branch used by the addon manager.
-
-## `Lua.addonManager.repositoryPath`
-- type: `string`
-- default: `""`
-- description:    Specifies the git path used by the addon manager.
-
-## `Lua.addonRepositoryPath`
-- type: `string`
-- default: `""`
-- description:    Specifies the addon repository path (not related to the addon manager).
-
 ## `Lua.codeLens.enable`
 - type: `boolean`
 - default: `false`

@@ -17,6 +17,9 @@ const overrids = {
   },
 }
 
+// Skip unsupported upstream settings
+const ignoredConfigs = ['addonManager', 'addonRepositoryPath']
+
 async function main() {
   const resp = await fetch(
     'https://github.com/LuaLS/vscode-lua/raw/refs/heads/master/setting/schema.json',
@@ -30,6 +33,7 @@ async function main() {
   // merge config
   console.log('merge config')
   Object.keys(properties).forEach((k) => {
+    if (ignoredConfigs.some(i => k.startsWith(i))) return
     if (k.includes('.') || !properties[k].properties) config[`Lua.${k}`] = properties[k]
   })
   Object.keys(overrids).forEach((key) => {

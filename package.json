@@ -76,30 +76,6 @@
           "default": true,
           "description": "Automatically check for updates after startup."
         },
-        "Lua.addonManager.enable": {
-          "default": true,
-          "markdownDescription": "Whether the addon manager is enabled or not.",
-          "scope": "resource",
-          "type": "boolean"
-        },
-        "Lua.addonManager.repositoryBranch": {
-          "default": "",
-          "markdownDescription": "Specifies the git branch used by the addon manager.",
-          "scope": "resource",
-          "type": "string"
-        },
-        "Lua.addonManager.repositoryPath": {
-          "default": "",
-          "markdownDescription": "Specifies the git path used by the addon manager.",
-          "scope": "resource",
-          "type": "string"
-        },
-        "Lua.addonRepositoryPath": {
-          "default": "",
-          "markdownDescription": "Specifies the addon repository path (not related to the addon manager).",
-          "scope": "resource",
-          "type": "string"
-        },
         "Lua.codeLens.enable": {
           "default": false,
           "markdownDescription": "Enable code lens.",
