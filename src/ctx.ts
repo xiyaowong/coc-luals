@@ -7,9 +7,10 @@ import { ExecuteCommandRequest } from 'vscode-languageserver-protocol'
 import which from 'which'
 import { AddonManager } from './addon_manger'
 import { Config } from './config'
+import { CLIENT_ID, LUA_DOCUMENT_SELECTOR } from './constants'
 import { Installer } from './installer'
 import { NvimLua } from './nvim-lua'
-import { CLIENT_ID, compareVersion, isLuaDocument, LUA_DOCUMENT_SELECTOR, registerCommand, withPrefix } from './util'
+import { compareVersion, isLuaDocument, registerCommand, withPrefix } from './util'
 
 export class Ctx implements Disposable {
   private readonly disposables: Disposable[] = []

@@ -1,7 +1,7 @@
 import type { Disposable } from 'coc.nvim'
-import type { Locale } from './util'
+import type { Locale } from './types'
 import { commands, disposeAll, window, workspace } from 'coc.nvim'
-import { CONFIG_NAME, CONFIGS_NEED_RESTART } from './util'
+import { CONFIG_NAME, CONFIGS_NEED_RESTART } from './constants'
 
 export class Config implements Disposable {
   private readonly disposables: Disposable[] = []

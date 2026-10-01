@@ -1,35 +1,12 @@
-import type { DocumentSelector, TextDocument } from 'coc.nvim'
+import type { TextDocument } from 'coc.nvim'
+import type { Cmd, LuaDocument } from './types'
 import { commands } from 'coc.nvim'
-
-export const COMMAND_NAME = 'lua'
-export const CONFIG_NAME = 'luals'
-export const ROOT_NAME = 'luals'
-export const CLIENT_ID = 'luals'
-
-export type Locale = 'en-us' | 'es-419' | 'ja-jp' | 'pt-br' | 'zh-cn' | 'zh-tw'
-
-export interface Release {
-  version: string
-  url: string
-}
-
-export type LuaDocument = TextDocument & { languageId: 'lua' }
-
-export const LUA_DOCUMENT_SELECTOR = { language: 'lua' } as const satisfies DocumentSelector
-
-export const CONFIGS_NEED_RESTART
-  = [
-    'Lua.misc.executablePath',
-    'Lua.misc.parameters',
-    ...(['serverDir', 'logPath', 'locale'].map(item => `${CONFIG_NAME}.${item}`)),
-  ]
+import { COMMAND_NAME } from './constants'
 
 export function isLuaDocument(document: TextDocument): document is LuaDocument {
   const ret = document.languageId === 'lua'
   return ret
 }
-
-export type Cmd = (...args: any[]) => unknown
 
 export function registerCommand(name: string, cmd: Cmd, internal = false) {
   return commands.registerCommand(`${COMMAND_NAME}.${name}`, cmd, internal)

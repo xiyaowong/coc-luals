@@ -1,11 +1,11 @@
 import type { Response } from 'node-fetch'
 import type { Ctx } from '@/ctx'
-import type { Release } from '@/util'
+import type { Release } from '@/types'
 import path from 'node:path'
 import { window } from 'coc.nvim'
 import * as fs from 'fs-extra'
 import fetch from 'node-fetch'
-import { ROOT_NAME } from '@/util'
+import { ROOT_NAME } from '@/constants'
 import { extract } from './extract-zip'
 
 export class Installer {
