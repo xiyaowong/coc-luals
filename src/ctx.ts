@@ -313,35 +313,33 @@ export class Ctx implements Disposable {
     if (!this.client) return
 
     this.client.onNotification('$/command', (params) => {
-      if (params.command !== 'lua.config') return
+      if (params.command === 'lua.config') {
+        const propMap: Record<string, any> = {}
+        for (const data of params.data) {
+          const folder = workspace.getWorkspaceFolder(data.uri)
+          const config = workspace.getConfiguration(undefined, folder ? data.uri : undefined)
+          if (data.action === 'add') {
+            const value = [...config.get<any[]>(data.key, []), data.value]
+            config.update(data.key, value, data.global)
+          } else if (data.action === 'set') {
+            config.update(data.key, data.value, data.global)
+          } else if (data.action === 'prop') {
+            if (!propMap[data.key]) propMap[data.key] = config.get(data.key)
 
-      const propMap: Map<string, Map<string, any>> = new Map()
-      for (const data of params.data) {
-        const folder = workspace.getWorkspaceFolder(data.uri)
-        const config = workspace.getConfiguration(
-          undefined,
-          folder ? data.uri : undefined,
-        )
-        if (data.action === 'add') {
-          let value = config.get<any[]>(data.key, [])
-          // weird...
-          value = Array.from(value)
-          value.push(data.value)
-          config.update(data.key, value, data.global)
-          continue
+            propMap[data.key][data.prop] = data.value
+            config.update(data.key, propMap[data.key], data.global)
+          }
         }
-        if (data.action === 'set') {
-          config.update(data.key, data.value, data.global)
-          continue
-        }
-        if (data.action === 'prop') {
-          if (!propMap[data.key]) propMap[data.key] = config.get(data.key)
 
-          propMap[data.key][data.prop] = data.value
-          config.update(data.key, propMap[data.key], data.global)
-          continue
-        }
+        return
       }
+
+      const args = Array.isArray(params.data)
+        ? params.data
+        : params.data !== undefined
+          ? [params.data]
+          : []
+      commands.executeCommand(params.command, ...args)
     })
   }
 
