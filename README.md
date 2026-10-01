@@ -1,73 +1,140 @@
-# coc-luals
+# 🌙 coc-luals
 
-Lua extension using [lua-language-server](https://github.com/LuaLS/lua-language-server) for coc.nvim
+<p align="center">
+  <strong>Lua Language Server extension for coc.nvim</strong><br>
+  <em>Full LuaLS feature support with tailored Neovim Lua integration</em>
+</p>
 
-This extension uses server binaries extracted from [`LuaLS/vscode-lua`](https://github.com/LuaLS/vscode-lua/).
-You can also custom the server path([`luals.serverDir`](settings.md#lualsserverdir)).
+<p align="center">
+  <a href="https://github.com/xiyaowong/coc-luals/releases"><img src="https://img.shields.io/npm/v/coc-luals.svg?style=flat-square&color=blue" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
+  <a href="https://github.com/LuaLS/lua-language-server"><img src="https://img.shields.io/badge/powered%20by-LuaLS-000080.svg?style=flat-square" alt="LuaLS"></a>
+</p>
 
-## Features
+---
 
-- All supported features by the server
-- Neovim Lua development (see [Neovim Lua Development](#neovim-lua-development))
-- Addon manager (see [Addon Manager](#addon-manager))
+**coc-luals** is a [coc.nvim](https://github.com/neoclide/coc.nvim) extension powered by [lua-language-server (LuaLS)](https://github.com/LuaLS/lua-language-server). It provides the full feature set of [`LuaLS/vscode-lua`](https://github.com/LuaLS/vscode-lua), along with dedicated Neovim Lua development utilities like dynamic library imports and integrated addon management.
 
-## Install
+---
 
-`:CocInstall coc-luals`
+## ✨ Features
 
-## Neovim Lua Development
+- 🎯 **Full LuaLS Support**: Complete language server features and configuration schema, using official binaries extracted from `LuaLS/vscode-lua`.
+- ⚡ **Auto-Download**: Automatically downloads prebuilt binaries on first launch (Windows, macOS, Linux), or point to your own binary.
+- 🧩 **Neovim Lua Development**: Auto `$VIMRUNTIME` loading, on-demand plugin library imports on `require('...')`, and quickfix code actions.
+- 📦 **Addon Manager**: Browse, install, and toggle official [LuaLS/LLS-Addons](https://github.com/LuaLS/LLS-Addons) directly in coc.nvim via `:CocList lls_addons`.
 
-coc-luals provides Neovim Lua development support with dynamic library import.
+---
 
-### Settings
+## 📦 Installation
 
-- `luals.nvimLua.enable` (default: `false`): Enable Neovim Lua development support, automatically imports `$VIMRUNTIME`.
-- `luals.nvimLua.library` (default: `[]`): Pre-imported Neovim lua plugin library names, for example: `["nvim-treesitter"]`.
+Install via coc.nvim:
 
-### Features
+```vim
+:CocInstall coc-luals
+```
 
-- **Completion**: When writing `require('...')` or `---@module '...'`, completion includes modules from runtime plugins. Completing an unimported module dynamically imports its plugin library into the workspace.
-- **Code Action**: Provides a quickfix code action (`Import library '<name>' to workspace`) on `require('...')` or `---@module '...'` expressions to dynamically import the corresponding plugin library.
+> 💡 On first launch, if `lua-language-server` is not found, `coc-luals` prompts to download the prebuilt binary automatically.
 
-## Addon Manager
+---
 
-Manage addons from [LuaLS/LLS-Addons](https://github.com/LuaLS/LLS-Addons).
+## 📖 Neovim Lua Development
 
-Run `:CocCommand lua.openAddonManager` or `:CocList lls_addons` to open the addon manager list.
+Designed for editing Neovim configurations and plugins:
+
+- **Automatic `$VIMRUNTIME`**: Provides autocompletion and documentation for Neovim runtime APIs (`vim.api.*`, `vim.fn.*`, etc.).
+- **Runtime Plugin Completion**: Autocomplete suggestions include modules from installed runtime plugins.
+- **Dynamic Library Import**: Instead of adding every installed plugin to `workspace.library` at startup, definitions are loaded on-the-fly when used.
+- **Code Action**: Offers `Import library '<name>' to workspace` on unimported module calls.
+
+### Configuration
+
+```jsonc
+// In :CocConfig
+{
+  // Enable Neovim Lua development support (auto-imports $VIMRUNTIME)
+  "luals.nvimLua.enable": true,
+
+  // Optional: pre-import specific plugin libraries
+  "luals.nvimLua.library": [
+    "nvim-treesitter",
+    "plenary.nvim"
+  ]
+}
+```
+
+---
+
+## 🧩 Addon Manager
+
+Manage addons from [LuaLS/LLS-Addons](https://github.com/LuaLS/LLS-Addons) (e.g. definitions and annotations for Busted, LÖVE, OpenResty, Hammerspoon).
+
+Open the addon list:
+
+```vim
+:CocList lls_addons
+" or
+:CocCommand lua.openAddonManager
+```
 
 ### Status Indicators
 
-- `[+]`: Enabled
-- `[*]`: Installed (disabled)
-- `[-]`: Not installed
+| Indicator | Status |
+| :-------: | :----- |
+| `[+]` | Enabled in workspace |
+| `[*]` | Installed (disabled) |
+| `[-]` | Available (not installed) |
 
-### Keymaps & Actions
+### Actions
 
-- `<CR>`: Enable addon (default action; installs automatically if not yet installed).
-- `<Tab>`: Open action menu to choose an action:
-  - `enable`: Enable the addon and apply settings
-  - `disable`: Disable the addon and revert settings
-  - `install`: Download and install the addon
-  - `uninstall`: Uninstall the addon
-  - `view on github`: Open the addon repository page on GitHub in browser
+- `<CR>`: Enable addon (downloads and installs automatically if not yet present).
+- `<Tab>`: Open action menu:
+  - `enable`: Enable addon and apply workspace settings
+  - `disable`: Disable addon and revert settings
+  - `install`: Download and cache addon
+  - `uninstall`: Remove local addon cache
+  - `view on github`: Open repository in browser
 
-## [Settings (Click me)](settings.md)
+---
 
-## [Config Examples for Distributions (Currently only NixOS)](examples-for-distributions.md)
+## 🛠️ Server Executable
 
-## Commands
+- **Default**: Uses official release binaries extracted from `LuaLS/vscode-lua`.
+- **Custom Executable / Directory**: To use a system package or custom build:
+  ```jsonc
+  {
+    "Lua.misc.executablePath": "lua-language-server"
+    // or
+    // "luals.serverDir": "/path/to/lua-language-server"
+  }
+  ```
 
-| Command            | Description                     |
-| ------------------ | ------------------------------- |
-| `lua.install`      | Install or update server        |
-| `lua.restart`      | Restart extension               |
-| `lua.checkUpdate`  | Check server update             |
-| `lua.showVersion`  | Show server version             |
-| `lua.showUsage`    | Show status and resource usage  |
-| `lua.showChangelog`| Show server changelog           |
-| `lua.openAddonManager` | Open addon manager          |
-| `lua.reloadFFIMeta`| Reload LuaJIT FFI meta          |
+---
 
-## License
+## ⌨️ Commands
 
-MIT
+| Command | Description |
+| :------ | :---------- |
+| `lua.install` | Install or update server binary |
+| `lua.restart` | Restart Lua language server and extension |
+| `lua.checkUpdate` | Check for server binary updates |
+| `lua.showVersion` | Show current Lua Language Server version |
+| `lua.showUsage` | Display server status and resource usage |
+| `lua.showChangelog` | Open and read server changelog |
+| `lua.openAddonManager` | Open the Addon Manager list |
+| `lua.reloadFFIMeta` | Reload LuaJIT FFI metadata definitions |
+
+---
+
+## ⚙️ Settings
+
+`coc-luals` supports all upstream LuaLS configuration options.
+
+- 📖 **[Full Settings Reference](settings.md)**
+- 🐧 **[Config Examples for Distributions (e.g. NixOS)](examples-for-distributions.md)**
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © [wongxy](https://github.com/xiyaowong)
