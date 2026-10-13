@@ -80,6 +80,11 @@ Configuration options supported by `coc-luals`. Configure them in `coc-settings.
 - default: `"@"`
 - description:    The symbol used to trigger the postfix suggestion.
 
+## `Lua.completion.requireFunction`
+- type: `string`
+- default: `"require"`
+- description:    The function to insert when an auto-require is triggered.
+
 ## `Lua.completion.requireSeparator`
 - type: `string`
 - default: `"."`
