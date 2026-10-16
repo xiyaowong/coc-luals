@@ -114,12 +114,14 @@ export class AddonManager extends BasicList {
   }
 
   public async installAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('install', addons)) return
     for (const addon of addons) {
       await this.installAddon(addon)
     }
   }
 
   public async uninstallAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('uninstall', addons)) return
     for (const addon of addons) {
       await this.disableAddons([addon])
 
@@ -133,6 +135,7 @@ export class AddonManager extends BasicList {
   }
 
   public async enableAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('enable', addons)) return
     for (const addon of addons) {
       await this.installAddon(addon)
       await this.ctx.config.addWorkspaceLibrary(`\${addons}/${addon.name}/module/library`)
@@ -141,10 +144,22 @@ export class AddonManager extends BasicList {
   }
 
   public async disableAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('disable', addons)) return
     for (const addon of addons) {
       await this.ctx.config.removeWorkspaceLibrary(lib => this.isLibraryOf(lib, addon.name))
       await this.disableAddon(addon)
     }
+  }
+
+  /** Ask before acting on more than one addon at once. */
+  private async confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
+    if (addons.length <= 1) return true
+    const choice = await window.showWarningMessage(
+      `${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`,
+      'Yes',
+      'No',
+    )
+    return choice === 'Yes'
   }
 
   private async enableAddon(addon: AddonItem): Promise<void> {
