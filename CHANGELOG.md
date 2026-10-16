@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/xiyaowong/coc-luals/compare/v1.2.0...v1.2.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* include missing files in published package ([c0b9905](https://github.com/xiyaowong/coc-luals/commit/c0b9905de0c67d159c394383efcc9060be43e495))
+
 ## [1.2.0](https://github.com/xiyaowong/coc-luals/compare/v1.1.4...v1.2.0) (2026-10-16)
 
 
