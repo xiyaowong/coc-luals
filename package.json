@@ -14,10 +14,10 @@
     "lua-language-server",
     "LuaLS"
   ],
+  "main": "lib/index.js",
   "files": [
     "lib"
   ],
-  "main": "lib/index.js",
   "engines": {
     "coc": "^0.0.80",
     "node": ">=22.0.0"
