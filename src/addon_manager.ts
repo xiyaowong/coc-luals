@@ -166,18 +166,7 @@ export class AddonManager extends BasicList {
 
   private confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
     if (addons.length <= 1) return Promise.resolve(true)
-    return new Promise<boolean>((resolve) => {
-      void window.showNotification({
-        kind: 'warning',
-        title: 'Addon manager',
-        content: `${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`,
-        buttons: [
-          { index: 1, text: 'Yes' },
-          { index: 2, text: 'No' },
-        ],
-        callback: index => resolve(index === 1),
-      })
-    })
+    return window.showPrompt(`${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`)
   }
 
   private async enableAddon(addon: AddonItem): Promise<void> {
