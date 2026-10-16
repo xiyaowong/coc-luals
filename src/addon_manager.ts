@@ -30,7 +30,6 @@ export interface AddonItem {
 
 type AddonVerb = 'enable' | 'disable' | 'install' | 'uninstall'
 
-/** Past participle of each action, for summarizing a batch. */
 const DONE_LABEL: Record<AddonVerb, string> = {
   install: 'installed',
   enable: 'enabled',
@@ -38,7 +37,6 @@ const DONE_LABEL: Record<AddonVerb, string> = {
   uninstall: 'uninstalled',
 }
 
-/** Why an addon was left alone: it is already in the state the action wants. */
 const SKIP_LABEL: Record<AddonVerb, string> = {
   install: 'already installed',
   enable: 'already enabled',
@@ -46,12 +44,7 @@ const SKIP_LABEL: Record<AddonVerb, string> = {
   uninstall: 'not installed',
 }
 
-/**
- * Payload of the selected list items.
- *
- * Multiple actions receive the marked items when there are any, otherwise the
- * current item as a one-element array.
- */
+/** A multiple action receives the marked items, or the current item if none are marked. */
 function addonItems(items: ListItem[]): AddonItem[] {
   return items.map(item => item.data as AddonItem)
 }
@@ -136,32 +129,22 @@ export class AddonManager extends BasicList {
     await workspace.openResource(url)
   }
 
-  /** Enable every addon in the selection, installing the missing ones first. */
   public async enableAddons(addons: AddonItem[]): Promise<void> {
     await this.runAddonAction('enable', addons)
   }
 
-  /** Install every addon in the selection. */
   public async installAddons(addons: AddonItem[]): Promise<void> {
     await this.runAddonAction('install', addons)
   }
 
-  /** Disable every addon in the selection. */
   public async disableAddons(addons: AddonItem[]): Promise<void> {
     await this.runAddonAction('disable', addons)
   }
 
-  /** Uninstall every addon in the selection. */
   public async uninstallAddons(addons: AddonItem[]): Promise<void> {
     await this.runAddonAction('uninstall', addons)
   }
 
-  /**
-   * Apply an addon's `config.json` settings.
-   *
-   * `workspace.library` is owned by the batch, which tracks the pending value
-   * and writes it once; every other setting is applied here.
-   */
   private async enableAddon(addon: AddonItem): Promise<void> {
     const configFile = path.join(this.getModuleDir(addon.name), 'config.json')
     if (fs.existsSync(configFile)) {
@@ -176,12 +159,6 @@ export class AddonManager extends BasicList {
     }
   }
 
-  /**
-   * Revoke an addon's `config.json` settings.
-   *
-   * `workspace.library` is owned by the batch, which tracks the pending value
-   * and writes it once; every other setting is revoked here.
-   */
   private async disableAddon(addon: AddonItem): Promise<void> {
     const configFile = path.join(this.getModuleDir(addon.name), 'config.json')
     if (fs.existsSync(configFile)) {
@@ -196,7 +173,6 @@ export class AddonManager extends BasicList {
     }
   }
 
-  /** Check out the addon's submodule contents. */
   private async installAddon(addon: AddonItem): Promise<boolean> {
     const ready = await this.ensureRepo()
     if (!ready) return false
@@ -224,7 +200,6 @@ export class AddonManager extends BasicList {
     return true
   }
 
-  /** Drop the addon's checked-out submodule contents. */
   private async deinitAddon(addon: AddonItem): Promise<void> {
     const moduleDir = this.getModuleDir(addon.name)
     if (!fs.existsSync(moduleDir)) return
@@ -238,13 +213,11 @@ export class AddonManager extends BasicList {
   }
 
   /**
-   * Run one action over every selected addon as a single batch.
+   * Run one action over every selected addon.
    *
-   * The whole selection is pre-checked, so an addon is only reported as done
-   * when it was actually acted on. Installing and enabling need the addons
-   * repository, fetched once up front instead of per addon. Changes to
-   * `workspace.library` are collected and written once, so a multi-addon action
-   * does not rewrite the setting for every addon.
+   * The selection is pre-checked so an addon is reported as done only when it
+   * actually was, and `workspace.library` is written once per action instead of
+   * once per addon.
    */
   private async runAddonAction(verb: AddonVerb, addons: AddonItem[]): Promise<void> {
     const selected = [...new Map(addons.map(addon => [addon.name, addon])).values()]
@@ -295,7 +268,6 @@ export class AddonManager extends BasicList {
           await this.disableAddon(addon)
           done++
         } else {
-          // Uninstall disables the addon first, then drops its contents.
           next = next.filter(lib => !this.isLibraryOf(lib, addon.name))
           await this.disableAddon(addon)
           await this.deinitAddon(addon)
@@ -354,7 +326,6 @@ export class AddonManager extends BasicList {
 
   private async revokeAddonSettings(settings: Record<string, any>): Promise<void> {
     for (const [key, value] of Object.entries(settings)) {
-      // Owned by the batch, which writes the pending value once per action.
       if (key === 'Lua.workspace.library') continue
 
       const parts = key.split('.')
