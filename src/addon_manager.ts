@@ -115,50 +115,69 @@ export class AddonManager extends BasicList {
 
   public async installAddons(addons: AddonItem[]): Promise<void> {
     if (!await this.confirmBatch('install', addons)) return
-    for (const addon of addons) {
-      await this.installAddon(addon)
-    }
+    await window.withProgress({ title: this.describe('Installing', addons) }, async () => {
+      for (const addon of addons) {
+        await this.installAddon(addon)
+      }
+    })
   }
 
   public async uninstallAddons(addons: AddonItem[]): Promise<void> {
     if (!await this.confirmBatch('uninstall', addons)) return
-    for (const addon of addons) {
-      await this.disableAddons([addon])
+    await window.withProgress({ title: this.describe('Uninstalling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.disableAddons([addon])
 
-      const addonRelativePath = path.join('addons', addon.name)
-      try {
-        await this.runGit(['submodule', 'deinit', '-f', addonRelativePath])
-      } catch (err: any) {
-        window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
+        const addonRelativePath = path.join('addons', addon.name)
+        try {
+          await this.runGit(['submodule', 'deinit', '-f', addonRelativePath])
+        } catch (err: any) {
+          window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
+        }
       }
-    }
+    })
   }
 
   public async enableAddons(addons: AddonItem[]): Promise<void> {
     if (!await this.confirmBatch('enable', addons)) return
-    for (const addon of addons) {
-      await this.installAddon(addon)
-      await this.ctx.config.addWorkspaceLibrary(`\${addons}/${addon.name}/module/library`)
-      await this.enableAddon(addon)
-    }
+    await window.withProgress({ title: this.describe('Enabling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.installAddon(addon)
+        await this.ctx.config.addWorkspaceLibrary(`\${addons}/${addon.name}/module/library`)
+        await this.enableAddon(addon)
+      }
+    })
   }
 
   public async disableAddons(addons: AddonItem[]): Promise<void> {
     if (!await this.confirmBatch('disable', addons)) return
-    for (const addon of addons) {
-      await this.ctx.config.removeWorkspaceLibrary(lib => this.isLibraryOf(lib, addon.name))
-      await this.disableAddon(addon)
-    }
+    await window.withProgress({ title: this.describe('Disabling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.ctx.config.removeWorkspaceLibrary(lib => this.isLibraryOf(lib, addon.name))
+        await this.disableAddon(addon)
+      }
+    })
   }
 
-  private async confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
-    if (addons.length <= 1) return true
-    const choice = await window.showWarningMessage(
-      `${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`,
-      'Yes',
-      'No',
-    )
-    return choice === 'Yes'
+  private describe(verb: string, addons: AddonItem[]): string {
+    const target = addons.length === 1 ? `"${addons[0].name}"` : `${addons.length} addons`
+    return `${verb} ${target}...`
+  }
+
+  private confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
+    if (addons.length <= 1) return Promise.resolve(true)
+    return new Promise<boolean>((resolve) => {
+      void window.showNotification({
+        kind: 'warning',
+        title: 'Addon manager',
+        content: `${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`,
+        buttons: [
+          { index: 1, text: 'Yes' },
+          { index: 2, text: 'No' },
+        ],
+        callback: index => resolve(index === 1),
+      })
+    })
   }
 
   private async enableAddon(addon: AddonItem): Promise<void> {
@@ -196,8 +215,6 @@ export class AddonManager extends BasicList {
     if (this.isAddonInstalled(addon.name)) return
 
     const moduleDir = this.getModuleDir(addon.name)
-
-    window.showInformationMessage(`Installing addon "${addon.name}"...`)
 
     const addonRelativePath = path.join('addons', addon.name)
     try {
