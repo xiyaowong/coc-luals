@@ -151,7 +151,6 @@ export class AddonManager extends BasicList {
     }
   }
 
-  /** Ask before acting on more than one addon at once. */
   private async confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
     if (addons.length <= 1) return true
     const choice = await window.showWarningMessage(
