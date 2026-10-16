@@ -1,0 +1,166 @@
+name: Sync upstream schema
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-schema
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snapshot current schema
+        run: cp package.json "$RUNNER_TEMP/package.before.json"
+
+      - name: Run sync script
+        run: npm run sync
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No upstream schema changes." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Summarize changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          cat > "$RUNNER_TEMP/schema-diff.mjs" <<'EOF'
+          import { execSync } from 'node:child_process'
+          import fs from 'node:fs'
+
+          const [, , beforePath] = process.argv
+
+          const before = JSON.parse(fs.readFileSync(beforePath, 'utf8'))
+          const after = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+
+          // Compare with sorted keys so key reordering is not reported as a change
+          function sortKeys(value) {
+            if (Array.isArray(value)) return value.map(sortKeys)
+            if (value && typeof value === 'object') {
+              return Object.fromEntries(
+                Object.keys(value).sort().map(k => [k, sortKeys(value[k])]),
+              )
+            }
+            return value
+          }
+
+          const normalize = value => JSON.stringify(sortKeys(value))
+          const props = pkg => pkg.contributes?.configuration?.properties ?? {}
+          const commands = pkg => pkg.contributes?.commands ?? []
+
+          const beforeProps = props(before)
+          const afterProps = props(after)
+
+          const added = Object.keys(afterProps).filter(k => !(k in beforeProps)).sort()
+          const removed = Object.keys(beforeProps).filter(k => !(k in afterProps)).sort()
+          const changed = Object.keys(afterProps)
+            .filter(k => k in beforeProps && normalize(beforeProps[k]) !== normalize(afterProps[k]))
+            .sort()
+
+          const describe = prop => {
+            const parts = []
+            if ('default' in prop) parts.push(`default=${JSON.stringify(prop.default)}`)
+            if (prop.enum) parts.push(`enum=${JSON.stringify(prop.enum)}`)
+            return parts.join(' ')
+          }
+
+          const beforeCommands = new Map(commands(before).map(c => [c.command, c.title]))
+          const afterCommands = new Map(commands(after).map(c => [c.command, c.title]))
+          const addedCommands = [...afterCommands.keys()].filter(c => !beforeCommands.has(c)).sort()
+          const removedCommands = [...beforeCommands.keys()].filter(c => !afterCommands.has(c)).sort()
+
+          const lines = []
+
+          if (added.length) {
+            lines.push(`Added settings (${added.length}):`)
+            for (const k of added) {
+              const info = describe(afterProps[k])
+              lines.push(`- ${k}${info ? ` (${info})` : ''}`)
+            }
+            lines.push('')
+          }
+
+          if (removed.length) {
+            lines.push(`Removed settings (${removed.length}):`)
+            for (const k of removed) lines.push(`- ${k}`)
+            lines.push('')
+          }
+
+          if (changed.length) {
+            lines.push(`Updated settings (${changed.length}):`)
+            for (const k of changed) {
+              lines.push(`- ${k}`)
+              lines.push(`  before: ${describe(beforeProps[k]) || '(no default/enum)'}`)
+              lines.push(`  after:  ${describe(afterProps[k]) || '(no default/enum)'}`)
+            }
+            lines.push('')
+          }
+
+          if (addedCommands.length) {
+            lines.push(`Added commands (${addedCommands.length}):`)
+            for (const c of addedCommands) lines.push(`- ${c}: ${afterCommands.get(c)}`)
+            lines.push('')
+          }
+
+          if (removedCommands.length) {
+            lines.push(`Removed commands (${removedCommands.length}):`)
+            for (const c of removedCommands) lines.push(`- ${c}: ${beforeCommands.get(c)}`)
+            lines.push('')
+          }
+
+          if (!lines.length) {
+            lines.push('No setting or command changed.')
+            try {
+              const files = execSync('git diff --name-only', { encoding: 'utf8' }).trim()
+              if (files) lines.push(`Touched files: ${files.split('\n').join(', ')}`)
+            } catch {}
+          }
+
+          process.stdout.write(`${lines.join('\n').trimEnd()}\n`)
+          EOF
+          node "$RUNNER_TEMP/schema-diff.mjs" "$RUNNER_TEMP/package.before.json" > "$RUNNER_TEMP/details.txt"
+          cat "$RUNNER_TEMP/details.txt"
+          {
+            echo "## Sync upstream schema"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/details.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Use a message file: setting descriptions and enum values may contain
+          # shell-special characters, so the details must not be interpolated.
+          {
+            echo "schema: sync upstream schema"
+            echo
+            cat "$RUNNER_TEMP/details.txt"
+          } > "$RUNNER_TEMP/commit-msg.txt"
+          git add -A
+          git commit -F "$RUNNER_TEMP/commit-msg.txt"
+          git push origin "HEAD:${{ github.ref_name }}"
