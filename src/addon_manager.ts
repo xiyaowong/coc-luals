@@ -28,6 +28,11 @@ export interface AddonItem {
   enabled: boolean
 }
 
+/** A multiple action receives the marked items, or the current item if none are marked. */
+function addonItems(items: ListItem[]): AddonItem[] {
+  return items.map(item => item.data as AddonItem)
+}
+
 export class AddonManager extends BasicList {
   public readonly name = 'lls_addons'
   public readonly description = 'Manage Lua Language Server addons'
@@ -38,10 +43,10 @@ export class AddonManager extends BasicList {
   constructor(private readonly ctx: Ctx) {
     super()
 
-    this.addAction('enable', async item => this.enableAddon(item.data))
-    this.addAction('disable', async item => this.disableAddon(item.data))
-    this.addAction('install', async item => this.installAddon(item.data).then(() => {}))
-    this.addAction('uninstall', async item => this.uninstallAddon(item.data))
+    this.addMultipleAction('enable', items => this.enableAddons(addonItems(items)))
+    this.addMultipleAction('disable', items => this.disableAddons(addonItems(items)))
+    this.addMultipleAction('install', items => this.installAddons(addonItems(items)))
+    this.addMultipleAction('uninstall', items => this.uninstallAddons(addonItems(items)))
     this.addAction('view on github', async item => this.viewOnGithub(item.data))
   }
 
@@ -100,66 +105,7 @@ export class AddonManager extends BasicList {
   }
 
   public isAddonEnabled(name: string): boolean {
-    const libs = this.ctx.config.workspaceLibrary
-    const normName = name.replace(/[-_.]/g, '').toLowerCase()
-    return libs.some((lib) => {
-      const normalized = lib.replace(/\\/g, '/').toLowerCase()
-      return (
-        normalized.includes(`${name.toLowerCase()}/module/library`)
-        || normalized.includes(`${normName}/module/library`)
-      )
-    })
-  }
-
-  public async installAddon(addon: AddonItem): Promise<boolean> {
-    const ready = await this.ensureRepo()
-    if (!ready) return false
-
-    const moduleDir = this.getModuleDir(addon.name)
-
-    if (this.isAddonInstalled(addon.name)) {
-      window.showInformationMessage(`Addon "${addon.name}" is already installed.`)
-      return true
-    }
-
-    window.showInformationMessage(`Installing addon "${addon.name}"...`)
-
-    const addonRelativePath = path.join('addons', addon.name)
-    try {
-      await this.runGit(['submodule', 'update', '--init', '--depth=1', addonRelativePath])
-        .catch(() => this.runGit(['submodule', 'update', '--init', addonRelativePath]))
-    } catch (err: any) {
-      window.showErrorMessage(`Failed to install addon "${addon.name}": ${err?.message || err}`)
-      return false
-    }
-
-    if (!fs.existsSync(moduleDir) || fs.readdirSync(moduleDir).length === 0) {
-      window.showErrorMessage(`Addon "${addon.name}" failed to checkout submodule contents.`)
-      return false
-    }
-
-    window.showInformationMessage(`Addon "${addon.name}" installed successfully.`)
-    return true
-  }
-
-  public async uninstallAddon(addon: AddonItem): Promise<void> {
-    if (this.isAddonEnabled(addon.name)) {
-      await this.disableAddon(addon)
-    }
-
-    const moduleDir = this.getModuleDir(addon.name)
-    if (!fs.existsSync(moduleDir)) {
-      window.showInformationMessage(`Addon "${addon.name}" is not installed.`)
-      return
-    }
-
-    const addonRelativePath = path.join('addons', addon.name)
-    try {
-      await this.runGit(['submodule', 'deinit', '-f', addonRelativePath])
-      window.showInformationMessage(`Addon "${addon.name}" uninstalled.`)
-    } catch (err: any) {
-      window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
-    }
+    return this.ctx.config.workspaceLibrary.some(lib => this.isLibraryOf(lib, name))
   }
 
   public async viewOnGithub(addon: AddonItem): Promise<void> {
@@ -167,15 +113,63 @@ export class AddonManager extends BasicList {
     await workspace.openResource(url)
   }
 
-  public async enableAddon(addon: AddonItem): Promise<void> {
-    if (!this.isAddonInstalled(addon.name)) {
-      const installed = await this.installAddon(addon)
-      if (!installed) return
-    }
+  public async installAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('install', addons)) return
+    await window.withProgress({ title: this.describe('Installing', addons) }, async () => {
+      for (const addon of addons) {
+        await this.installAddon(addon)
+      }
+    })
+  }
 
-    const addonPathPlaceholder = `\${addons}/${addon.name}/module/library`
-    await this.ctx.config.addWorkspaceLibrary(addonPathPlaceholder)
+  public async uninstallAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('uninstall', addons)) return
+    await window.withProgress({ title: this.describe('Uninstalling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.disableAddons([addon])
 
+        const addonRelativePath = path.join('addons', addon.name)
+        try {
+          await this.runGit(['submodule', 'deinit', '-f', addonRelativePath])
+        } catch (err: any) {
+          window.showErrorMessage(`Failed to uninstall addon "${addon.name}": ${err?.message || err}`)
+        }
+      }
+    })
+  }
+
+  public async enableAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('enable', addons)) return
+    await window.withProgress({ title: this.describe('Enabling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.installAddon(addon)
+        await this.ctx.config.addWorkspaceLibrary(`\${addons}/${addon.name}/module/library`)
+        await this.enableAddon(addon)
+      }
+    })
+  }
+
+  public async disableAddons(addons: AddonItem[]): Promise<void> {
+    if (!await this.confirmBatch('disable', addons)) return
+    await window.withProgress({ title: this.describe('Disabling', addons) }, async () => {
+      for (const addon of addons) {
+        await this.ctx.config.removeWorkspaceLibrary(lib => this.isLibraryOf(lib, addon.name))
+        await this.disableAddon(addon)
+      }
+    })
+  }
+
+  private describe(verb: string, addons: AddonItem[]): string {
+    const target = addons.length === 1 ? `"${addons[0].name}"` : `${addons.length} addons`
+    return `${verb} ${target}...`
+  }
+
+  private confirmBatch(action: string, addons: AddonItem[]): Promise<boolean> {
+    if (addons.length <= 1) return Promise.resolve(true)
+    return window.showPrompt(`${action} ${addons.length} addons: ${addons.map(a => a.name).join(', ')}?`)
+  }
+
+  private async enableAddon(addon: AddonItem): Promise<void> {
     const configFile = path.join(this.getModuleDir(addon.name), 'config.json')
     if (fs.existsSync(configFile)) {
       try {
@@ -187,22 +181,10 @@ export class AddonManager extends BasicList {
         this.ctx.outputChannel.appendLine(`Failed to apply addon settings: ${String(err)}`)
       }
     }
-
-    window.showInformationMessage(`Addon "${addon.name}" enabled.`)
   }
 
-  public async disableAddon(addon: AddonItem): Promise<void> {
-    const normName = addon.name.replace(/[-_.]/g, '')
-    await this.ctx.config.removeWorkspaceLibrary((lib) => {
-      const normalized = lib.replace(/\\/g, '/').toLowerCase()
-      const nName = normName.toLowerCase()
-      return (
-        normalized.includes(`${addon.name.toLowerCase()}/module/library`)
-        || normalized.includes(`${nName}/module/library`)
-      )
-    })
-
-    const configFile = path.join(this.addonsDir, 'addons', addon.name, 'module', 'config.json')
+  private async disableAddon(addon: AddonItem): Promise<void> {
+    const configFile = path.join(this.getModuleDir(addon.name), 'config.json')
     if (fs.existsSync(configFile)) {
       try {
         const configData: AddonConfig = await fs.readJson(configFile)
@@ -213,8 +195,41 @@ export class AddonManager extends BasicList {
         this.ctx.outputChannel.appendLine(`Failed to revoke addon settings: ${String(err)}`)
       }
     }
+  }
 
-    window.showInformationMessage(`Addon "${addon.name}" disabled.`)
+  private async installAddon(addon: AddonItem): Promise<void> {
+    const ready = await this.ensureRepo()
+    if (!ready) return
+
+    if (this.isAddonInstalled(addon.name)) return
+
+    const moduleDir = this.getModuleDir(addon.name)
+
+    const addonRelativePath = path.join('addons', addon.name)
+    try {
+      await this.runGit(['submodule', 'update', '--init', '--depth=1', addonRelativePath])
+        .catch(() => this.runGit(['submodule', 'update', '--init', addonRelativePath]))
+    } catch (err: any) {
+      window.showErrorMessage(`Failed to install addon "${addon.name}": ${err?.message || err}`)
+      return
+    }
+
+    if (!fs.existsSync(moduleDir) || fs.readdirSync(moduleDir).length === 0) {
+      window.showErrorMessage(`Addon "${addon.name}" failed to checkout submodule contents.`)
+      return
+    }
+
+    window.showInformationMessage(`Addon "${addon.name}" installed.`)
+  }
+
+  private isLibraryOf(lib: string, name: string): boolean {
+    const normalized = lib.replace(/\\/g, '/').toLowerCase()
+    const normName = name.replace(/[-_.]/g, '').toLowerCase()
+
+    return (
+      normalized.includes(`${name.toLowerCase()}/module/library`)
+      || normalized.includes(`${normName}/module/library`)
+    )
   }
 
   private async applyAddonSettings(settings: Record<string, any>): Promise<void> {
