@@ -167,3 +167,8 @@ jobs:
           git add -A
           git commit -F "$RUNNER_TEMP/commit-msg.txt"
           git push origin "HEAD:${{ github.ref_name }}"
+          # bot pushes with GITHUB_TOKEN do not trigger other workflows, so
+          # dispatch release-please explicitly so the schema commit is released.
+          gh workflow run release.yml --ref "${{ github.ref_name }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

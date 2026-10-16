@@ -5,6 +5,9 @@ on:
     branches:
       - main
   pull_request:
+  # Dispatched by sync-upstream-schema after pushing a schema commit, since
+  # pushes made with GITHUB_TOKEN do not trigger other workflows.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,8 +18,9 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     # release-please always inspects the default branch, so PR runs would be
-    # identical to push runs; only execute on pushes to main.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # identical to push runs; only execute on pushes to main and on manual
+    # dispatch (used by sync-upstream-schema after a bot push).
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
     steps:
