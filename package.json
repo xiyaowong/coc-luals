@@ -16,7 +16,13 @@
   ],
   "main": "lib/index.js",
   "files": [
-    "lib"
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "examples-for-distributions.md",
+    "lib",
+    "package.json",
+    "settings.md"
   ],
   "engines": {
     "coc": "^0.0.80",
